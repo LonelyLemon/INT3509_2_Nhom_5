@@ -31,15 +31,24 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
 
 **EPIC 2: Backend Development & Data Processing**
 
-*   API Design: + Build API endpoints for real-time price data collection (Stocks, Forex, Commodities, …). + Build API endpoints to support user management (Login, registration, account management); manage articles, analysis, and discussions between users.
+*   API Design:
+    + Build API endpoints for real-time price data collection (Stocks, Forex, Commodities, …). 
+    + Build API endpoints to support user management (Login, registration, account management); manage articles, analysis, and discussions between users.
     
 *   News Aggregator: A system for collecting news from international financial sources and economic calendar information.
     
 *   Combining Relational Database with Vector Database: Store and retrieve historical data and financial reports as embeddings to support RAG.
     
-*   Data Validation: Have a clear data validation process: + Define clear schemas for all request/response. + Validate the legitimacy of certain specific data types (Symbol, Time-range).
+*   Data Validation: Have a clear data validation process: 
+    + Define clear schemas for all request/response. 
+    + Validate the legitimacy of certain specific data types (Symbol, Time-range).
     
-*   Security and Compliance: + Integrate authentication codes and JWT mechanism for user authentication/verification. + RBAC authorization mechanism: Admin/Users. + Encrypt user passwords using bcrypt algorithm before storing in PostgreSQL. + Cross-Site Scripting (XSS) protection, which is especially important for the forum/blog page where users input rich text. + Cross-Site Request Forgery (CSRF) protection.
+*   Security and Compliance: 
+    + Integrate authentication codes and JWT mechanism for user authentication/verification. 
+    + RBAC authorization mechanism: Admin/Users. 
+    + Encrypt user passwords using bcrypt algorithm before storing in PostgreSQL. 
+    + Cross-Site Scripting (XSS) protection, which is especially important for the forum/blog page where users input rich text. 
+    + Cross-Site Request Forgery (CSRF) protection.
 
 *   Real-time Communication: Use WebSockets for streaming real-time price data and SSE (Server-Sent Events) for streaming AI responses word-by-word (similar to ChatGPT).
 
@@ -56,13 +65,22 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
 
 **EPIC 3: User Interface & Interactivity**
 
-*   AI Chat Interface: + Diversify response formats: text, table (e.g., price table), chart. + Quick action buttons: Pre-suggest common questions or commands - FAQ (e.g., "Analyze VNM stock", "Summarize today's news") to help users interact quickly without needing to type much. + Real-time processing status: Clearly display when AI is generating a response so users know the system is active.
+*   AI Chat Interface: 
+    + Diversify response formats: text, table (e.g., price table), chart. 
+    + Quick action buttons: Pre-suggest common questions or commands - FAQ (e.g., "Analyze VNM stock", "Summarize today's news") to help users interact quickly without needing to type much. 
+    + Real-time processing status: Clearly display when AI is generating a response so users know the system is active.
     
-*   Financial Data Dashboard: + Flexible layout: The interface is divided into functional blocks that can be rearranged according to preferences (Chart in the center, watchlist on the right, AI chat on the left).
+*   Financial Data Dashboard: 
+    + Flexible layout: The interface is divided into functional blocks that can be rearranged according to preferences (Chart in the center, watchlist on the right, AI chat on the left).
     
-*   News Page and Economic Calendar: + News page: Arrange news chronologically (Reference from [investing.com](http://investing.com)). + Economic calendar page: Designed in table format, arranged chronologically, labeled with country of origin and news release time (Reference from investing.com).
+*   News Page and Economic Calendar: 
+    + News page: Arrange news chronologically (Reference from [investing.com](http://investing.com)). 
+    + Economic calendar page: Designed in table format, arranged chronologically, labeled with country of origin and news release time (Reference from investing.com).
     
-*   Community Forum and Blog Page: + Smart editing tools: Support users in creating professional analysis articles by directly inserting real charts into articles instead of using only static screenshots. + Allow comments and ratings (1-5 stars). + Allow importing .pdf files.
+*   Community Forum and Blog Page: 
+    + Smart editing tools: Support users in creating professional analysis articles by directly inserting real charts into articles instead of using only static screenshots. 
+    + Allow comments and ratings (1-5 stars). 
+    + Allow importing .pdf files.
     
 *   Fallback Message: Prepare appropriate messages with internal topics and data to display when the API is not operational.
     

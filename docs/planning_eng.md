@@ -23,19 +23,19 @@
 |-----|------|----------|------|---------------------|
 | Mon | 09/03 | **ALL** | Project kickoff: finalize Git branching strategy, set up repo structure, agree on coding conventions | Repo initialized with agreed folder structure and `README.md` |
 | Mon | 09/03 | **BE2** | Docker Compose setup: PostgreSQL, Qdrant, Redis containers | `docker compose up` launches all services; health checks pass |
-| Mon | 09/03 | **BE1** | FastAPI project scaffold: folder structure, config, `.env` management | FastAPI server starts with a `/health` endpoint returning `200 OK` |
+| Mon | 09/03 | **BE1** | FastAPI project scaffold: folder structure, config, `.env` management | FastAPI server starts and responds to a basic health check request |
 | Mon | 09/03 | **FE** | React + Vite scaffold, TailwindCSS setup, ESLint/Prettier config | `npm run dev` launches the app with a styled placeholder page |
-| Tue | 10/03 | **BE2** | Database schema design: users, articles, watchlist, alerts, conversations tables | ERD diagram or migration files reviewed and committed |
-| Tue | 10/03 | **BE1** | SQLAlchemy models + Alembic migration setup for all core tables | Migrations run successfully; tables created in PostgreSQL |
+| Tue | 10/03 | **BE2** | Database schema design: define all core entities and relationships for the application | ERD diagram or migration files reviewed and committed |
+| Tue | 10/03 | **BE1** | SQLAlchemy models + Alembic migration setup for all core entities | Migrations run successfully; tables created in PostgreSQL |
 | Tue | 10/03 | **FE** | Design system: color palette, typography (Google Fonts), CSS variables for dark/light mode | Design tokens defined; dark/light toggle switches all colors correctly |
 | Wed | 11/03 | **BE2** | GitHub Actions CI/CD pipeline: lint, test, build on PR | A test PR triggers the pipeline successfully |
-| Wed | 11/03 | **BE1** | Auth API: `/register`, `/login`, `/refresh-token` endpoints with JWT + bcrypt | Endpoints return correct JWT tokens; passwords stored as bcrypt hashes |
+| Wed | 11/03 | **BE1** | Implement authentication APIs for registering, login, and token refresh with JWT + bcrypt | Auth APIs return correct JWT tokens; passwords stored as bcrypt hashes |
 | Wed | 11/03 | **FE** | Auth pages UI: Login and Register forms with validation | Both pages render correctly with client-side validation feedback |
-| Thu | 12/03 | **BE2** | RBAC middleware (Admin/User roles), permission decorators | Protected endpoints return `403` for unauthorized roles |
-| Thu | 12/03 | **BE1** | Auth completion: logout, password change, email verification flow | All auth endpoints tested and documented in Swagger |
+| Thu | 12/03 | **BE2** | RBAC middleware (Admin/User roles), permission decorators | Protected resources return `403` for unauthorized roles |
+| Thu | 12/03 | **BE1** | Auth completion: implement logout, password change, and email verification features | All auth features tested and documented in Swagger |
 | Thu | 12/03 | **FE** | Auth integration: connect Login/Register pages to backend API, token storage | User can register, log in, and see protected content |
-| Fri | 13/03 | **BE2** | Redis integration: rate limiting middleware (`X requests/min/user`) | Rate-limited endpoint returns `429` after threshold; limits configurable |
-| Fri | 13/03 | **BE1** | User management API: get/update profile, account settings | Profile endpoints return and update user data correctly |
+| Fri | 13/03 | **BE2** | Redis integration: rate limiting middleware (configurable requests/min/user) | Rate-limited requests return `429` after threshold; limits configurable |
+| Fri | 13/03 | **BE1** | Implement user management APIs for retrieving/updating profile and account settings | User management APIs return and update user data correctly |
 | Fri | 13/03 | **FE** | User profile page UI + connection to user management API | Profile page displays and edits user info, persists changes |
 
 ### Week 2 — Mar 16–20: Core Data APIs & Dashboard Layout
@@ -45,10 +45,10 @@
 | Mon | 16/03 | **BE1** | Third-party data provider integration: connect to Alpha Vantage / Yahoo Finance / Finnhub for price data | Fetching real-time and historical price data returns valid JSON |
 | Mon | 16/03 | **BE2** | WebSocket server setup (FastAPI WebSocket endpoint) for real-time price streaming | WebSocket client can connect and receive test price messages |
 | Mon | 16/03 | **FE** | Main dashboard layout: header, sidebar, flexible content blocks (resizable panels) | Dashboard renders with draggable/resizable layout blocks |
-| Tue | 17/03 | **BE1** | Price API endpoints: `/prices/{symbol}`, `/prices/{symbol}/history`, `/prices/batch` | Endpoints return structured price data with correct time ranges |
+| Tue | 17/03 | **BE1** | Implement price data APIs for retrieving real-time quotes, historical data, and batch queries | APIs return structured price data with correct time ranges |
 | Tue | 17/03 | **BE2** | WebSocket price streaming: subscribe/unsubscribe to symbols, broadcast real-time ticks | Multiple clients receive price updates for subscribed symbols |
 | Tue | 17/03 | **FE** | Lightweight Charts integration: candlestick chart component with zoom/pan | Chart renders real candlestick data with interactive controls |
-| Wed | 18/03 | **BE1** | Technical indicators endpoint: SMA, EMA, RSI, MACD calculations | Indicators return correct calculated values for given symbol/timeframe |
+| Wed | 18/03 | **BE1** | Implement technical indicators API: SMA, EMA, RSI, MACD calculations | APIs return correct calculated values for given symbol/timeframe |
 | Wed | 18/03 | **BE2** | Data validation middleware: Pydantic schemas for Symbol, Time-range, price requests | Invalid inputs return clear `422` errors with field-level messages |
 | Wed | 18/03 | **FE** | Symbol selector/search component + chart switching | User can search symbols and switch the chart view dynamically |
 | Thu | 19/03 | **BE1** | Price data caching with Redis (TTL-based, invalidate on significant changes) | Repeated requests served from cache; cache miss fetches fresh data |
@@ -70,15 +70,15 @@
 | Mon | 23/03 | **BE2** | MCP server setup: FastAPI-based MCP server with tool registration framework | MCP server starts; tools can be registered and listed via API |
 | Mon | 23/03 | **FE** | AI Chat interface layout: message list panel, input box, send button, conversation drawer | Chat UI renders with scrollable message history and input area |
 | Tue | 24/03 | **BE1** | LLM fallback mechanism: auto-switch on failure/timeout, priority chain configuration | When primary LLM fails, agent seamlessly falls back to secondary |
-| Tue | 24/03 | **BE2** | MCP tools implementation: `get_stock_price`, `analyze_technical_indicators` | Tools callable via MCP protocol; return correct live data |
+| Tue | 24/03 | **BE2** | MCP tools implementation: tools for fetching stock prices and analyzing technical indicators | Tools callable via MCP protocol; return correct live data |
 | Tue | 24/03 | **FE** | Chat message renderers: text with markdown, data table, inline chart components | Messages display correctly in all 3 formats (text, table, chart) |
 | Wed | 25/03 | **BE1** | Conversation management: multi-turn state tracking, user context storage in DB | Conversation history persists across sessions; context window managed |
-| Wed | 25/03 | **BE2** | MCP tools implementation: `get_economic_calendar`, `get_news_summary` | All MCP tools return accurate, formatted data |
+| Wed | 25/03 | **BE2** | MCP tools implementation: tools for retrieving economic calendar events and summarizing news | All MCP tools return accurate, formatted data |
 | Wed | 25/03 | **FE** | Quick action buttons: pre-built FAQ prompts ("Analyze VNM", "Summarize today's news") | Clicking a button populates the input and sends the query |
 | Thu | 26/03 | **BE1** | Intent classification: route user queries to correct agent/tool | Classification correctly identifies chart, news, analysis, and general intents |
-| Thu | 26/03 | **BE2** | SSE endpoint for streaming AI responses word-by-word | SSE stream sends tokens as they are generated; client receives incremental text |
+| Thu | 26/03 | **BE2** | Implement SSE-based streaming for AI responses word-by-word | SSE stream sends tokens as they are generated; client receives incremental text |
 | Thu | 26/03 | **FE** | SSE integration: real-time AI response rendering (word-by-word streaming) | Chat displays AI response as it streams in, with typing indicator |
-| Fri | 27/03 | **BE1** | Chat API: `/chat/send`, `/chat/history`, `/chat/conversations` endpoints | Chat endpoints work end-to-end: send message → get streamed AI response |
+| Fri | 27/03 | **BE1** | Implement chat APIs for sending messages, retrieving chat history, and listing conversations | Chat APIs work end-to-end: send message → get streamed AI response |
 | Fri | 27/03 | **BE2** | Conversation history storage: save/retrieve full chat threads from DB | Chat history loaded on page refresh; old conversations browsable |
 | Fri | 27/03 | **FE** | Chat history drawer: list past conversations, load selected conversation | User can browse and resume past chat sessions |
 
@@ -96,10 +96,10 @@
 | Wed | 01/04 | **BE2** | News sentiment analysis pipeline (LLM-based, runs as background job) | Each news article gets a sentiment score (positive/neutral/negative) stored in DB |
 | Wed | 01/04 | **FE** | Economic calendar page: table with date/time, event, country flag, impact, actual/forecast | Calendar renders real data with filtering by date range and country |
 | Thu | 02/04 | **BE1** | Logfire monitoring integration: trace AI agent calls, log token usage, latency | Logfire dashboard shows request traces, token consumption, and error rates |
-| Thu | 02/04 | **BE2** | News API endpoints: `/news` (list, filter by date/sentiment/source), `/news/{id}` | Endpoints return paginated news with filtering; single article by ID works |
+| Thu | 02/04 | **BE2** | Implement news APIs for listing, filtering (by date/sentiment/source), and retrieving single articles | APIs return paginated news with filtering; single article retrieval works |
 | Thu | 02/04 | **FE** | Calendar filtering controls: by country, importance level, date range picker | Filters correctly narrow displayed events; combined filters work |
 | Fri | 03/04 | **BE1** | AI agent end-to-end testing: test all intent paths with sample queries | Test suite covers ≥ 10 representative queries; all return valid responses |
-| Fri | 03/04 | **BE2** | Economic calendar API: `/calendar` (list, filter by date/country/importance) | Calendar endpoint returns structured events with correct filtering |
+| Fri | 03/04 | **BE2** | Implement economic calendar APIs for listing and filtering events by date, country, and importance | Calendar APIs return structured events with correct filtering |
 | Fri | 03/04 | **FE** | News + Calendar page UI polish: loading states, empty states, error handling | Pages handle all states gracefully (loading spinner, "no results", API error) |
 
 ---
@@ -114,10 +114,10 @@
 | Mon | 06/04 | **BE2** | Portfolio/Watchlist API design: data models, endpoint specifications | API spec documented in Swagger with all CRUD operations defined |
 | Mon | 06/04 | **FE** | Portfolio management page layout: holdings table, add asset form, summary cards | Page renders with table structure and add-asset modal |
 | Tue | 07/04 | **BE1** | Document embedding pipeline: chunk financial reports → embed → store in Qdrant | Sample financial documents chunked and stored; similarity search returns relevant chunks |
-| Tue | 07/04 | **BE2** | Portfolio CRUD endpoints: add/remove/edit holdings with quantity, buy price, date | All CRUD operations work; portfolio value calculated from live prices |
+| Tue | 07/04 | **BE2** | Implement portfolio CRUD APIs for adding, removing, and editing holdings with quantity, buy price, and date | All CRUD operations work; portfolio value calculated from live prices |
 | Tue | 07/04 | **FE** | Portfolio UI: add/edit/delete assets, quantity & price inputs, confirmation dialogs | User can manage portfolio entries; changes persist after refresh |
 | Wed | 08/04 | **BE1** | RAG retrieval chain: integrate vector search into AI agent's reasoning pipeline | AI agent queries Qdrant for context before generating financial analysis responses |
-| Wed | 08/04 | **BE2** | Watchlist CRUD endpoints: add/remove symbols, reorder, set preferences | Watchlist API tested; symbols persist per user account |
+| Wed | 08/04 | **BE2** | Implement watchlist CRUD APIs for adding/removing symbols, reordering, and setting preferences | Watchlist APIs tested; symbols persist per user account |
 | Wed | 08/04 | **FE** | Watchlist management: drag-to-reorder, quick-add from chart, remove with swipe | Watchlist fully interactive; changes sync with backend |
 | Thu | 09/04 | **BE1** | RAG quality testing: measure retrieval relevance on financial queries | Retrieval precision ≥ 70% on test query set; irrelevant chunks filtered out |
 | Thu | 09/04 | **BE2** | Portfolio data validation + edge cases (duplicate symbols, negative quantities) | Invalid inputs rejected with clear error messages |
@@ -134,16 +134,16 @@
 | Mon | 13/04 | **BE2** | Alert storage & delivery: DB models, WebSocket notification push mechanism | Triggered alerts saved to DB and pushed to connected clients via WebSocket |
 | Mon | 13/04 | **FE** | Forum/Blog page layout: post list, create post button, category sidebar | Forum page renders with post cards and navigation |
 | Tue | 14/04 | **BE1** | Price alert monitor: background task checking price thresholds periodically | Price alerts trigger within 1 minute of threshold breach; notification sent |
-| Tue | 14/04 | **BE2** | Alert CRUD API: create/read/update/delete alerts, list active alerts per user | All alert CRUD endpoints work; user can manage their alerts |
+| Tue | 14/04 | **BE2** | Implement alert CRUD APIs for creating, reading, updating, deleting, and listing active alerts per user | All alert CRUD APIs work; user can manage their alerts |
 | Tue | 14/04 | **FE** | Rich text editor integration (e.g., TipTap/Slate) for blog post creation | Editor supports bold, italic, headings, lists, code blocks, images |
 | Wed | 15/04 | **BE1** | AI-driven alert: detect extremely negative sentiment from news analysis | Sentiment alert fires when aggregated news sentiment drops below threshold |
 | Wed | 15/04 | **BE2** | Alert notification delivery: in-app notification center + WebSocket push | Notifications appear in real-time in the notification bell/panel |
 | Wed | 15/04 | **FE** | Live chart embedding in blog posts: insert interactive Lightweight Charts into editor | Charts in posts are interactive (zoom/pan), not static images |
 | Thu | 16/04 | **BE1** | AI analysis caching: store and reuse recent analysis results (Redis, configurable TTL) | Identical queries within TTL return cached response; cache invalidated on market change |
-| Thu | 16/04 | **BE2** | Article/Post API: CRUD for posts, markdown/HTML content, author info, timestamps | Posts created, listed, updated, deleted via API; content renders correctly |
+| Thu | 16/04 | **BE2** | Implement article/post CRUD APIs supporting markdown/HTML content, author info, and timestamps | Posts created, listed, updated, deleted via APIs; content renders correctly |
 | Thu | 16/04 | **FE** | Comment section & star rating UI (1–5 stars) under each post | Users can comment and rate; average rating displayed on post card |
 | Fri | 17/04 | **BE1** | Alert system end-to-end testing (price + sentiment alerts) | All alert types tested; false positive rate acceptable |
-| Fri | 17/04 | **BE2** | Comment & Rating API: add/list comments, submit/update rating, average calculation | Comment threads work; rating average updates correctly on new submissions |
+| Fri | 17/04 | **BE2** | Implement comment and rating APIs for adding/listing comments and submitting/updating ratings with average calculation | Comment threads work; rating average updates correctly on new submissions |
 | Fri | 17/04 | **FE** | Forum post list + detail page: pagination, sorting (newest/top-rated), author profile link | Forum is browsable with sorting/pagination; post detail shows full content + comments |
 
 ---

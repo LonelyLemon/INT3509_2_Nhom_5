@@ -31,15 +31,24 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 
 **EPIC 2: Phát triển Backend & Xử lý dữ liệu**
 
-*   API Design: + Xây dựng các API endpoints thu thập dữ liệu giá theo thời gian thực (Cổ phiếu, Ngoại hối, Hàng hóa, …).+ Xây dựng các API endpoints hỗ trợ quản lý người dùng (Đăng nhập, đăng ký, quản lý tài khoản); quản lý các bài viết, phân tích và trao đổi giữa các người dùng,
+*   API Design: 
+    + Xây dựng các API endpoints thu thập dữ liệu giá theo thời gian thực (Cổ phiếu, Ngoại hối, Hàng hóa, …).
+    + Xây dựng các API endpoints hỗ trợ quản lý người dùng (Đăng nhập, đăng ký, quản lý tài khoản); quản lý các bài viết, phân tích và trao đổi giữa các người dùng.
     
 *   News Aggregator: Hệ thống thu thập tin tức từ các nguồn tài chính quốc tế và thông tin về lịch kinh tế.
     
 *   Kết hợp cơ sở dữ liệu quan hệ với cơ sở dữ liệu vector: Lưu trữ và truy xuất dữ liệu lịch sử, báo cáo tài chính dưới dạng embeddings để hỗ trợ RAG.
     
-*   Data validation: Có quy trình xác thực dữ liệu rõ ràng:+ Định nghĩa schema rõ ràng cho mọi request/response.+ Kiểm tra tính hợp lệ của một số loại dữ liệu đặc thù (Symbol, Time-range).
+*   Data validation: Có quy trình xác thực dữ liệu rõ ràng:
+    + Định nghĩa schema rõ ràng cho mọi request/response.
+    + Kiểm tra tính hợp lệ của một số loại dữ liệu đặc thù (Symbol, Time-range).
     
-*   Bảo mật và tuân thủ:+ Tích hợp mã xác thực và cơ chế JWT cho quá trình xác thực/xác minh người dùng.+ Cơ chế phân quyền RBAC: Admin/Users.+ Mã hóa mật khẩu người dùng bằng thuật toán bcrypt trước khi lưu trữ vào PostgreSQL.+ Bảo vệ chống Cross-Site Scripting (XSS), đặc biệt quan trọng cho trang diễn đàn/blog nơi người dùng nhập rich text.+ Bảo vệ chống Cross-Site Request Forgery (CSRF).
+*   Bảo mật và tuân thủ:
+    + Tích hợp mã xác thực và cơ chế JWT cho quá trình xác thực/xác minh người dùng.
+    + Cơ chế phân quyền RBAC: Admin/Users.
+    + Mã hóa mật khẩu người dùng bằng thuật toán bcrypt trước khi lưu trữ vào PostgreSQL.
+    + Bảo vệ chống Cross-Site Scripting (XSS), đặc biệt quan trọng cho trang diễn đàn/blog nơi người dùng nhập rich text.
+    + Bảo vệ chống Cross-Site Request Forgery (CSRF).
 
 *   Giao tiếp thời gian thực: Sử dụng WebSockets để truyền tải dữ liệu giá theo thời gian thực và SSE (Server-Sent Events) để truyền tải phản hồi AI theo từng từ (tương tự ChatGPT).
 
@@ -56,13 +65,21 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 
 **EPIC 3: Giao diện người dùng & Tính tương tác**
 
-*   Giao diện trò chuyện (AI Chat Interface):+ Đa dạng hóa format câu phản hồi: dạng text, dạng bảng (ví dụ: bảng giá), dạng biểu đồ.+ Nút thao tác nhanh: Gợi ý sẵn các câu hỏi hoặc lệnh phổ biến - FAQ (Ví dụ: "Phân tích mã VNM", "Tóm tắt tin tức hôm nay") giúp người dùng tương tác nhanh mà không cần gõ nhiều.+ Trạng thái xử lý thời gian thực: Hiển thị rõ ràng lúc AI đang trong quá trình sinh câu trả lời để người dùng biết rằng hệ thống đang hoạt động.
+*   Giao diện trò chuyện (AI Chat Interface):
+    + Đa dạng hóa format câu phản hồi: dạng text, dạng bảng (ví dụ: bảng giá), dạng biểu đồ.
+    + Nút thao tác nhanh: Gợi ý sẵn các câu hỏi hoặc lệnh phổ biến - FAQ (Ví dụ: "Phân tích mã VNM", "Tóm tắt tin tức hôm nay") giúp người dùng tương tác nhanh mà không cần gõ nhiều.+ Trạng thái xử lý thời gian thực: Hiển thị rõ ràng lúc AI đang trong quá trình sinh câu trả lời để người dùng biết rằng hệ thống đang hoạt động.
     
-*   Bảng điều khiển dữ liệu tài chính (Financial Dashboard):+ Bố cục linh hoạt: Giao diện được chia thành các khối chức năng có thể sắp xếp lại theo sở thích (Biểu đồ ở giữa, danh mục theo dõi bên phải, AI chat bên trái).
+*   Bảng điều khiển dữ liệu tài chính (Financial Dashboard):
+    + Bố cục linh hoạt: Giao diện được chia thành các khối chức năng có thể sắp xếp lại theo sở thích (Biểu đồ ở giữa, danh mục theo dõi bên phải, AI chat bên trái).
     
-*   Trang tin tức và lịch kinh tế:+ Trang tin tức: Sắp xếp tin tức theo dòng thời gian (Tham khảo từ [investing.com](http://investing.com))+ Trang lịch kinh tế: Thiết kế dạng bảng, sắp xếp theo dòng thời gian, có gán nhãn quốc gia xuất xứ, thời gian ra tin (Tham khảo từ investing.com). 
+*   Trang tin tức và lịch kinh tế:
+    + Trang tin tức: Sắp xếp tin tức theo dòng thời gian (Tham khảo từ [investing.com](http://investing.com))
+    + Trang lịch kinh tế: Thiết kế dạng bảng, sắp xếp theo dòng thời gian, có gán nhãn quốc gia xuất xứ, thời gian ra tin (Tham khảo từ investing.com). 
     
-*   Trang diễn đàn và blog cộng đồng:+ Công cụ soạn thảo thông minh: Hỗ trợ người dùng tạo bài viết phân tích chuyên nghiệp bằng cách chèn trực tiếp các biểu đồ thực tế vào bài viết thay vì chỉ dùng ảnh chụp màn hình tĩnh.+ Cho phép các phần bình luận, đánh giá (1-5 sao).+ Cho phép import file .pdf
+*   Trang diễn đàn và blog cộng đồng:
+    + Công cụ soạn thảo thông minh: Hỗ trợ người dùng tạo bài viết phân tích chuyên nghiệp bằng cách chèn trực tiếp các biểu đồ thực tế vào bài viết thay vì chỉ dùng ảnh chụp màn hình tĩnh.
+    + Cho phép các phần bình luận, đánh giá (1-5 sao).
+    + Cho phép import file .pdf
     
 *   Fallback message: Chuẩn bị các tin nhắn phù hợp với các chủ đề và dữ liệu nội bộ để hiển thị khi API không hoạt động.
     
