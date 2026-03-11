@@ -29,7 +29,7 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
 *   Caching & Rate Limiting: Implement a Caching mechanism (to store previous analysis results when the market has not fluctuated) and Rate Limiting (to restrict the number of queries/minute per user) to prevent system crashes or API budget depletion.
     
 
-**EPIC 2: Backend Development & Data Processing**
+**EPIC 2: Backend Development**
 
 *   API Design:
     + Build API endpoints for real-time price data collection (Stocks, Forex, Commodities, …). 
@@ -39,15 +39,11 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
     
 *   Combining Relational Database with Vector Database: Store and retrieve historical data and financial reports as embeddings to support RAG.
     
-*   Data Validation: Have a clear data validation process: 
-    + Define clear schemas for all request/response. 
-    + Validate the legitimacy of certain specific data types (Symbol, Time-range).
-    
-*   Security and Compliance: 
-    + Integrate authentication codes and JWT mechanism for user authentication/verification. 
-    + RBAC authorization mechanism: Admin/Users. 
-    + Encrypt user passwords using bcrypt algorithm before storing in PostgreSQL. 
-    + Cross-Site Scripting (XSS) protection, which is especially important for the forum/blog page where users input rich text. 
+*   Security and Compliance:
+    + Integrate authentication codes and JWT mechanism for user authentication/verification.
+    + RBAC authorization mechanism: Admin/Users.
+    + Encrypt user passwords using bcrypt algorithm before storing in PostgreSQL.
+    + Cross-Site Scripting (XSS) protection, which is especially important for the forum/blog page where users input rich text.
     + Cross-Site Request Forgery (CSRF) protection.
 
 *   Real-time Communication: Use WebSockets for streaming real-time price data and SSE (Server-Sent Events) for streaming AI responses word-by-word (similar to ChatGPT).
@@ -95,6 +91,20 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
 *   Social Sharing: Feature to generate shareable links for charts or AI analysis chat logs outside the forum.
     
 
+**EPIC 4: Data Processing**
+
+*   Data Management and Validation:
+    + Schema Validation: Establish a strict validation process for all requests and responses using Pydantic to ensure data integrity.
+    + Domain-specific Data Validation: Build dedicated validators for asset symbols (Symbol), time ranges (Time-range), and PDF file formats before feeding them into the processing pipeline.
+    + Spam Data Filtering: Remove duplicate or irrelevant news from the News Aggregator system before performing sentiment analysis.
+
+*   Database Version Management: Use Alembic to track and apply structural changes to PostgreSQL tables without losing existing data.
+
+*   Hybrid Database Synchronization: Establish a synchronization mechanism between the relational database (PostgreSQL) and the vector database (Qdrant) to ensure RAG retrieval results always match the latest financial information.
+
+*   Task Queue: Use Celery and RabbitMQ/Redis to handle heavy tasks such as PDF text extraction or historical price data collection without blocking the main API.
+
+
 **TECHNICAL ARCHITECTURE (TECHNICAL STACK)**
 
 **AI Orchestration Layer:**
@@ -137,6 +147,8 @@ Reference applications: [in.tradingview.com](https://in.tradingview.com); [forex
 *   PostgreSQL
     
 *   Vector Database: Qdrant
+
+*   Database Migration: Alembic
 
 **DevOps / Deployment:**
 
