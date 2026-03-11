@@ -1,4 +1,4 @@
-# 📈 TheMarketPulse — AI-Powered Financial Market Analysis
+# 📈 MarketMind — AI-Powered Financial Market Analysis
 
 A web application for financial market analysis powered by a **multi-agent AI system**. Provides real-time price streaming, AI-driven insights via conversational chat, news aggregation with sentiment analysis, and community-driven content — all in one platform.
 
