@@ -29,7 +29,7 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 *   Caching & Rate Limiting: Triển khai cơ chế Caching (lưu trữ kết quả phân tích trước đó khi thị trường chưa có biến động) và Rate Limiting (giới hạn số lượng truy vấn/phút cho mỗi người dùng) để tránh sập hệ thống hoặc cạn kiệt ngân sách API.
     
 
-**EPIC 2: Phát triển Backend & Xử lý dữ liệu**
+**EPIC 2: Phát triển Backend**
 
 *   API Design: 
     + Xây dựng các API endpoints thu thập dữ liệu giá theo thời gian thực (Cổ phiếu, Ngoại hối, Hàng hóa, …).
@@ -38,10 +38,6 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 *   News Aggregator: Hệ thống thu thập tin tức từ các nguồn tài chính quốc tế và thông tin về lịch kinh tế.
     
 *   Kết hợp cơ sở dữ liệu quan hệ với cơ sở dữ liệu vector: Lưu trữ và truy xuất dữ liệu lịch sử, báo cáo tài chính dưới dạng embeddings để hỗ trợ RAG.
-    
-*   Data validation: Có quy trình xác thực dữ liệu rõ ràng:
-    + Định nghĩa schema rõ ràng cho mọi request/response.
-    + Kiểm tra tính hợp lệ của một số loại dữ liệu đặc thù (Symbol, Time-range).
     
 *   Bảo mật và tuân thủ:
     + Tích hợp mã xác thực và cơ chế JWT cho quá trình xác thực/xác minh người dùng.
@@ -94,6 +90,20 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 *   Chia sẻ mạng xã hội (Social Sharing): Tính năng tạo liên kết chia sẻ cho biểu đồ hoặc nhật ký trò chuyện phân tích AI ra bên ngoài diễn đàn.
     
 
+**EPIC 4: Xử lý dữ liệu**
+
+*   Quản lý và xác thực dữ liệu:
+    + Xác thực Schema: Thiết lập quy trình kiểm tra nghiêm ngặt cho mọi yêu cầu (request) và phản hồi (response) bằng Pydantic để đảm bảo tính toàn vẹn dữ liệu.
+    + Kiểm tra dữ liệu đặc thù: Xây dựng các trình kiểm tra (validators) riêng cho các mã tài sản (Symbol), khoảng thời gian (Time-range) và định dạng tệp tin PDF trước khi đưa vào luồng xử lý.
+    + Lọc dữ liệu rác: Loại bỏ các tin tức trùng lặp hoặc không liên quan từ hệ thống News Aggregator trước khi thực hiện phân tích cảm xúc.
+
+*   Quản lý phiên bản Database: Sử dụng Alembic để theo dõi và thực hiện các thay đổi về cấu trúc bảng trong PostgreSQL mà không làm mất dữ liệu hiện có.
+
+*   Đồng bộ hóa Hybrid Database: Thiết lập cơ chế đồng bộ giữa dữ liệu quan hệ (PostgreSQL) và dữ liệu vector (Qdrant) để đảm bảo kết quả truy xuất RAG luôn khớp với thông tin tài chính mới nhất.
+
+*   Xử lý hàng đợi (Task Queue): Sử dụng Celery và RabbitMQ/Redis để xử lý các tác vụ nặng như trích xuất text từ PDF hoặc thu thập dữ liệu giá lịch sử mà không gây nghẽn API chính.
+
+
 **KIẾN TRÚC KỸ THUẬT (TECHNICAL STACK)**
 
 **AI Orchestration Layer:**
@@ -136,6 +146,8 @@ Dự án tập trung xây dựng một nền tảng Web thông minh tích hợp 
 *   PostgreSQL
     
 *   Vector Database: Qdrant
+
+*   Database Migration: Alembic
 
 **DevOps / Deployment:**
 
