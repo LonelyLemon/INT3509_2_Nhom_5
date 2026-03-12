@@ -16,23 +16,23 @@ function App() {
           <img src={reactLogo} className="w-24 h-24 animate-[spin_10s_linear_infinite]" alt="React logo" />
         </a>
       </div>
-
+      
       <h1 className="text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-        Vite + React + Tailwind CSS
+        Vite + React + TypeScript + Tailwind CSS
       </h1>
-
+      
       <div className="bg-gray-800 p-8 rounded-2xl shadow-xl flex flex-col items-center">
-        <button
+        <button 
           onClick={() => setCount((count) => count + 1)}
           className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors mb-4"
         >
           Count is {count}
         </button>
         <p className="text-gray-400 mt-2">
-          Edit <code className="bg-gray-700 px-2 py-1 rounded text-sm text-pink-300">src/App.jsx</code> and save to test HMR
+          Edit <code className="bg-gray-700 px-2 py-1 rounded text-sm text-pink-300">src/App.tsx</code> and save to test HMR
         </p>
       </div>
-
+      
       <p className="mt-8 text-gray-500 text-sm">
         Click on the Vite and React logos to learn more
       </p>
