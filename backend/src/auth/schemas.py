@@ -32,5 +32,13 @@ class UserUpdate(BaseModel):
 class ForgetPasswordRequest(BaseModel):
     email: EmailStr
 
+class UserPublicProfile(BaseModel):
+    id: UUID
+    username: str = Field(..., description="User's username")
+    display_name: str | None = Field(None, description="User's display name")
+    avatar_url: str | None = Field(None, description="User's avatar URL")
+    bio: str | None = Field(None, description="User's bio")
+    created_at: datetime = Field(..., description="Time of user creation")
+
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
