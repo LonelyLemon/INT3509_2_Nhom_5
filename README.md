@@ -1,6 +1,6 @@
 # 📈 MarketMind — AI-Powered Financial Market Analysis
 
-A web application for financial market analysis powered by a **multi-agent AI system**. Provides real-time price streaming, AI-driven insights via conversational chat, news aggregation with sentiment analysis, and community-driven content — all in one platform.
+Một ứng dụng web phân tích thị trường tài chính được cung cấp bởi **hệ thống AI đa tác tử**. Cung cấp luồng giá thời gian thực, thông tin chi tiết do AI cung cấp thông qua trò chuyện hội thoại, tổng hợp tin tức với phân tích cảm xúc và nội dung do cộng đồng cung cấp — tất cả trong một nền tảng.
 
 ---
 
@@ -16,64 +16,56 @@ A web application for financial market analysis powered by a **multi-agent AI sy
 
 ---
 
-## 📂 Project Structure
+## 📂 Cấu trúc dự án
 
 ```
 ├── backend/          # FastAPI server, AI agents, background workers
 ├── frontend/         # React SPA
-├── docs/             # Project documentation (see below)
+├── docs/             # Tài liệu dự án
 ├── test/             # Test suites
 └── docker-compose.yml
 ```
 
 ---
 
-## 📚 Documentation Guide
+## 📚 Hướng dẫn tài liệu
 
-All documentation lives in the [`docs/`](docs/) directory. Use the table below to find the right document for your purpose.
+Tất cả tài liệu nằm trong thư mục [`docs/`](docs/). Sử dụng bảng dưới đây để tìm tài liệu phù hợp với mục đích của bạn.
 
-| I want to… | Read this |
+| Tôi muốn… | Đọc tài liệu này |
 |------------|-----------|
-| Understand the **project scope and goals** | [proposal_eng.md](docs/proposal_eng.md) · [proposal_vie.md](docs/proposal_vie.md) |
-| See the **system architecture** and how layers interact | [architecture_design.md](docs/architecture_design.md) |
-| Explore the **database schema**, tables, and data flows | [database_design.md](docs/database_design.md) |
-| Review **what the app should do** (feature-by-feature) | [functional_requirements.md](docs/functional_requirements.md) |
-| Check the **project timeline** and weekly task breakdown | [planning_eng.md](docs/planning_eng.md) · [planning_vie.md](docs/planning_vie.md) |
-| Follow **coding conventions** and folder structure rules | [coding_conventions.md](docs/coding_conventions.md) |
-| Understand the **Git branching strategy** | [git_branching_strat.md](docs/git_branching_strat.md) |
+| Hiểu **phạm vi và mục tiêu của dự án** | [proposal_eng.md](docs/proposal_eng.md) · [proposal_vie.md](docs/proposal_vie.md) |
+| Xem **kiến trúc hệ thống** và cách các lớp tương tác | [architecture_design.md](docs/architecture_design.md) |
+| Khám phá **database schema**, bảng và luồng dữ liệu | [database_design.md](docs/database_design.md) |
+| Xem **ứng dụng nên làm gì** (từng tính năng) | [functional_requirements.md](docs/functional_requirements.md) |
+| Kiểm tra **tiến độ dự án** và phân công công việc hàng tuần | [planning_eng.md](docs/planning_eng.md) · [planning_vie.md](docs/planning_vie.md) |
+| Tuân theo **quy ước mã hóa** và quy tắc cấu trúc thư mục | [coding_conventions.md](docs/coding_conventions.md) |
+| Hiểu **chiến lược phân nhánh Git** | [git_branching_strat.md](docs/git_branching_strat.md) |
 
-> **Note**: Documents suffixed with `_eng` and `_vie` are English and Vietnamese versions of the same content.
+> **Lưu ý**: Các tài liệu có hậu tố `_eng` và `_vie` là phiên bản tiếng Anh và tiếng Việt của cùng một nội dung.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Hướng dẫn khởi động
 
 ```bash
-# 1. Clone the repository
+# 1. Clone repository
 git clone <repo-url> && cd INT3509_2_Nhom_5
 
-# 2. Start infrastructure services
+# 2. Khởi chạy các dịch vụ cơ sở hạ tầng
 docker compose up -d
 
-# 3. Run the backend
+# 3. Khởi chạy backend
 cd backend
-cp .env.example .env        # configure your environment variables
-pip install -r requirements.txt
+uv sync (Nếu sử dụng 'uv')
+pip install -r requirements.txt (Nếu sử dụng 'pip')
 alembic upgrade head         # run database migrations
 uvicorn src.main:app --reload
 
-# 4. Run the frontend
+# 4. Khởi chạy frontend
 cd frontend
 npm install
 npm run dev
 ```
 
 ---
-
-## 👥 Team — Group 5
-
-| Member | Role |
-|--------|------|
-| Member 1 | Frontend Developer |
-| Member 2 | Backend & AI Developer |
-| Member 3 | Backend & AI Developer |

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi.security import OAuth2PasswordRequestForm
 from loguru import logger
 
@@ -8,11 +10,13 @@ from fastapi import (APIRouter, BackgroundTasks,
 from fastapi_mail import MessageSchema, MessageType
 
 from src.auth.schemas import (UserCreate, UserResponse, UserUpdate, 
+                              UserPublicProfile,
                               ForgetPasswordRequest,
                               ResendVerificationRequest)
 from src.auth.models import User
 from src.auth.exceptions import (UserEmailExist, UserNotFound, UserNotVerified,
-                                 InvalidToken, InvalidPassword)
+                                 InvalidToken, InvalidPassword,
+                                 InsufficientPermissions, UserBanned)
 from src.auth.security import hash_password, verify_pw, generate_reset_otp
 from src.auth.utils import create_access_token, create_refresh_token, create_verify_token, decode_token
 from src.auth.email_service import email_service_basic
@@ -252,4 +256,45 @@ async def forget_password(db: SessionDep,
 
     return {
         "message": "Check your email for password reset link"
+    }
+
+
+#----------------------
+#  GET PUBLIC PROFILE
+#----------------------
+@auth_route.get('/users/{user_id}', response_model=UserPublicProfile)
+async def get_public_profile(user_id: UUID, db: SessionDep):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise UserNotFound()
+    
+    return user
+
+
+#----------------------
+#    BAN / UNBAN USER
+#----------------------
+@auth_route.patch('/users/{user_id}/ban')
+async def ban_user(user_id: UUID,
+                   db: SessionDep,
+                   current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise InsufficientPermissions()
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user = result.scalar_one_or_none()
+
+    if not target_user:
+        raise UserNotFound()
+
+    target_user.is_banned = not target_user.is_banned
+    await db.commit()
+    await db.refresh(target_user)
+
+    status = "banned" if target_user.is_banned else "unbanned"
+    return {
+        "message": f"User {target_user.username} has been {status}.",
+        "is_banned": target_user.is_banned
     }

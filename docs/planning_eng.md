@@ -17,37 +17,6 @@ Each task is labeled with a **Type** using the format `Domain<Category>` to clas
 | `Backend<Database>` | Schema design, optimization, indexing |
 | `Backend<Data Integration>` | Third-party API connections, data fetching |
 | `Backend<Validation>` | Pydantic schemas, input/output validation |
-| `Backend<WebSocket>` | Real-time streaming infrastructure |
-| `Backend<AI Agent>` | LLM orchestration, pydantic-ai, intent classification |
-| `Backend<MCP>` | MCP server, tool registration, tool implementation |
-| `Backend<AI Safety>` | Guardrails, prompt injection, content filtering |
-| `Backend<AI Evaluation>` | DeepEval, quality metrics, prompt optimization |
-| `Backend<RAG>` | Qdrant, embeddings, retrieval chain |
-| `Backend<PDF Pipeline>` | PDF extraction, chunking, vectorization |
-| `Backend<Caching>` | Redis caching strategies |
-| `Backend<Background Job>` | Celery tasks, scheduled workers |
-| `Backend<Security>` | XSS, CSRF, security audit, penetration testing |
-| `Backend<Monitoring>` | Logfire tracing, dashboards, alerting |
-| `Backend<i18n>` | Backend internationalization |
-| `Backend<Testing>` | Unit/integration test suites |
-| `Backend<Documentation>` | API docs, deployment guides |
-| `Frontend<Scaffold>` | Project setup, tooling, linting |
-| `Frontend<Design System>` | Color palette, typography, CSS tokens |
-| `Frontend<Page>` | Page layout and structure |
-| `Frontend<Component>` | Reusable UI components |
-| `Frontend<Integration>` | Connect UI to backend APIs |
-| `Frontend<i18n>` | Translation files, language switching |
-| `Frontend<Performance>` | Lazy loading, code splitting, bundle optimization |
-| `Frontend<Accessibility>` | Keyboard nav, ARIA labels, contrast |
-| `Frontend<Testing>` | Responsive testing, visual QA |
-| `Frontend<Documentation>` | Component docs, design system guide |
-| `DevOps<Infrastructure>` | Docker, CI/CD, GitHub Actions |
-| `Fullstack<Setup>` | Project kickoff, conventions |
-| `Fullstack<Integration Test>` | End-to-end cross-stack testing |
-| `Fullstack<Bug Fix>` | Bug triage and resolution |
-| `Fullstack<QA>` | Final quality assurance |
-| `Fullstack<Deployment>` | Production deployment, dry runs |
-| `Fullstack<Demo>` | Presentation, demo preparation |
 
 ---
 
