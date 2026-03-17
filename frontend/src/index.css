@@ -1,28 +1,82 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #646cff;
+  /* Colors */
+  --color-primary: #3B82F6;
+  --color-secondary: #60A5FA;
+  --color-cta: #F97316;
+  --color-background-light: #F8FAFC;
+  --color-text-light: #1E293B;
+  
+  --color-background-dark: #020617; /* Very deep dark for OLED */
+  --color-text-dark: #F8FAFC;
+  --color-card-dark: #0F172A;
+  --color-border-dark: #1E293B;
+
+  --color-card-light: #FFFFFF;
+  --color-border-light: #E2E8F0;
+
+  /* Fonts */
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Menlo, monospace;
 }
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@layer base {
+  :root {
+    --bg-color: var(--color-background-light);
+    --text-color: var(--color-text-light);
+    --card-bg: var(--color-card-light);
+    --border-color: var(--color-border-light);
+  }
+  
+  .dark {
+    --bg-color: var(--color-background-dark);
+    --text-color: var(--color-text-dark);
+    --card-bg: var(--color-card-dark);
+    --border-color: var(--color-border-dark);
+  }
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  * {
+    border-color: var(--border-color);
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    transition: background-color 300ms ease, color 300ms ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+  }
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+@layer utilities {
+  .btn-primary {
+    @apply bg-[var(--color-cta)] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 cursor-pointer;
+  }
+  .btn-primary:hover {
+    @apply opacity-90 -translate-y-[1px];
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent text-[var(--color-primary)] border-2 border-[var(--color-primary)] px-6 py-3 rounded-lg font-semibold transition-all duration-200 cursor-pointer;
+  }
+  .btn-secondary:hover {
+    @apply bg-[var(--color-primary)]/10;
+  }
+
+  .glass-card {
+    @apply bg-[var(--card-bg)]/80 backdrop-blur-md border border-[var(--border-color)] rounded-xl p-6 shadow-sm transition-all duration-200;
+  }
+  .glass-card:hover {
+    @apply shadow-md -translate-y-[2px];
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg text-[var(--text-color)] text-base transition-colors duration-200 outline-none;
+  }
+  .input-field:focus {
+    @apply border-[var(--color-primary)] ring-3 ring-[var(--color-primary)]/20;
+  }
 }

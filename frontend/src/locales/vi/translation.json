@@ -1,0 +1,19 @@
+{
+  "app_name": "Nền Tảng Phân Tích",
+  "navigation": {
+    "dashboard": "Bảng Điều Khiển",
+    "news": "Tin Tức",
+    "calendar": "Lịch Kinh Tế",
+    "community": "Cộng Đồng"
+  },
+  "auth": {
+    "login": "Đăng Nhập",
+    "signup": "Đăng Ký",
+    "profile": "Hồ Sơ"
+  },
+  "chat": {
+    "placeholder": "Hỏi AI về phân tích thị trường...",
+    "quick_actions": "Thao tác nhanh",
+    "thinking": "AI Đang xử lý..."
+  }
+}
