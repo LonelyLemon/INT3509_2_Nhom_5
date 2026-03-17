@@ -26,6 +26,13 @@ class Settings(CustomBaseSettings):
     POSTGRES_HOST: str
     SQLALCHEMY_DATABASE_URL: str
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Rate Limiting
+    RATE_LIMIT_REQUESTS: int = 100  # max requests per window
+    RATE_LIMIT_WINDOW: int = 60    # window size in seconds
+
     # Authentication
     SECRET_KEY: str
     SECURITY_ALGORITHM: str

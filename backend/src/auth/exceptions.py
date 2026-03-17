@@ -48,3 +48,19 @@ class UserNotAuthenticated(HTTPException):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not authenticated."
         )
+
+
+class InsufficientPermissions(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action."
+        )
+
+
+class UserBanned(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been banned."
+        )

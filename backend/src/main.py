@@ -8,6 +8,8 @@ from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
+from src.core.redis import init_redis, close_redis
+from src.core.rate_limiter import RateLimiterMiddleware
 
 from src.router import router
 
@@ -16,7 +18,9 @@ THIS_DIR = Path(__file__).parent
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
+    await init_redis()
     yield
+    await close_redis()
 
 # ── OpenAPI tags for docs grouping ──
 tags_metadata = [
@@ -55,6 +59,9 @@ app.add_middleware(
     allow_methods=("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
     allow_headers=settings.CORS_HEADERS,
 )
+
+# ── Rate Limiting Middleware ──
+app.add_middleware(RateLimiterMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
