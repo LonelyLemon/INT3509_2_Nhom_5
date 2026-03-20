@@ -38,6 +38,7 @@ function App() {
     checkAuth();
   }, [checkAuth]);
 
+function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -60,11 +61,11 @@ function App() {
           <Route path="/community" element={<Forum />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
-
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-export default App
+export default App;
