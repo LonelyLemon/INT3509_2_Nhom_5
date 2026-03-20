@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { 
-  BarChart2, 
-  Newspaper, 
-  Calendar, 
-  Users, 
+import {
+  BarChart2,
+  Newspaper,
+  Calendar,
+  Users,
   UserCircle,
-  Menu, 
-  Moon, 
+  Menu,
+  Moon,
   Sun,
   Globe
 } from "lucide-react";
@@ -42,9 +42,9 @@ export const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-color)] text-[var(--text-color)] overflow-hidden font-sans">
-      
+
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           "h-full border-r border-[var(--border-color)] bg-[var(--card-bg)] transition-all duration-300 flex flex-col items-center py-6",
           isSidebarOpen ? "w-64" : "w-20"
@@ -54,8 +54,8 @@ export const DashboardLayout = () => {
           "flex items-center w-full mb-8 transition-all",
           isSidebarOpen ? "px-4 justify-between" : "justify-center"
         )}>
-          {isSidebarOpen && <span className="font-bold text-xl tracking-tight text-[var(--color-primary)]">FinAnalytics</span>}
-          <button 
+          {isSidebarOpen && <span className="font-bold text-xl tracking-tight text-[var(--color-primary)]">MarketMind</span>}
+          <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg hover:bg-[var(--border-color)]/30 transition-colors cursor-pointer"
           >
@@ -71,8 +71,8 @@ export const DashboardLayout = () => {
               className={({ isActive }) => cn(
                 "flex items-center py-3 px-3 rounded-lg transition-all duration-200 cursor-pointer group",
                 !isSidebarOpen && "justify-center",
-                isActive 
-                  ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium" 
+                isActive
+                  ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
                   : "hover:bg-[var(--border-color)]/30 text-[var(--text-color)]/70 hover:text-[var(--text-color)]"
               )}
             >
@@ -86,7 +86,7 @@ export const DashboardLayout = () => {
 
         {/* User & Settings */}
         <div className="w-full px-3 mt-auto flex flex-col space-y-2">
-          <button 
+          <button
             onClick={toggleLanguage}
             className="flex items-center justify-center py-3 px-3 rounded-lg hover:bg-[var(--border-color)]/30 transition-all cursor-pointer"
             title={i18n.language === "vi" ? "Switch to English" : "Chuyển sang Tiếng Việt"}
@@ -94,8 +94,8 @@ export const DashboardLayout = () => {
             <Globe size={20} />
             {isSidebarOpen && <span className="ml-3 uppercase font-medium">{i18n.language}</span>}
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setIsDark(!isDark)}
             className="flex items-center justify-center py-3 px-3 rounded-lg hover:bg-[var(--border-color)]/30 transition-all cursor-pointer"
           >

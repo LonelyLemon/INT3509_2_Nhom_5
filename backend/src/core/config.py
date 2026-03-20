@@ -52,6 +52,12 @@ class Settings(CustomBaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # Massive API Key
+    MASSIVE_API_KEY: str
+
+    # Alpha Vantage API Key
+    ALPHA_VANTAGE_API_KEY: str
+
     @computed_field
     @property
     def ASYNC_DATABASE_URI(self) -> PostgresDsn:

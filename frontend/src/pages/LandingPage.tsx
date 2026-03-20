@@ -14,24 +14,24 @@ export const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg-color)] text-[var(--text-color)] flex flex-col items-center justify-center p-6 text-center">
-      
+
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto flex flex-col items-center mt-20">
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-          Intelligence for <br/> <span className="text-[var(--color-primary)]">Modern Finance</span>
+          Intelligence for <br /> <span className="text-[var(--color-primary)]">Modern Finance</span>
         </h1>
         <p className="text-xl md:text-2xl text-[var(--text-color)]/70 max-w-2xl mb-12">
           Elevate your portfolio with advanced analytics, real-time news, and actionable AI insights.
         </p>
-        
+
         <div className="flex items-center justify-center gap-4 mb-24">
-          <button 
+          <button
             onClick={() => navigate("/login")}
             className="btn-secondary text-lg px-8 py-3"
           >
             {t("auth.login")}
           </button>
-          <button 
+          <button
             onClick={() => navigate("/signup")}
             className="btn-primary flex items-center gap-2 text-lg px-8 py-3 group"
           >
@@ -54,7 +54,7 @@ export const LandingPage = () => {
 
       {/* Footer */}
       <footer className="mt-auto py-8 text-[var(--text-color)]/50 text-sm">
-        &copy; 2026 FinAnalytics Platform. All rights reserved.
+        &copy; 2026 MarketMind Platform. All rights reserved.
       </footer>
     </div>
   );
