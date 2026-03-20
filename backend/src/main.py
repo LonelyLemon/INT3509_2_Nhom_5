@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.redis import init_redis, close_redis
 from src.core.rate_limiter import RateLimiterMiddleware
+from src.news.scheduler import start_scheduler, stop_scheduler
 
 from src.router import router
 
@@ -19,12 +20,15 @@ THIS_DIR = Path(__file__).parent
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
     await init_redis()
+    start_scheduler()
     yield
+    stop_scheduler()
     await close_redis()
 
 # ── OpenAPI tags for docs grouping ──
 tags_metadata = [
     {"name": "auth", "description": "Authentication & user management"},
+    {"name": "News", "description": "Market news & sentiment"},
 ]
 
 app = FastAPI(
