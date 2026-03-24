@@ -4,13 +4,10 @@ import json
 
 from datetime import datetime
 from src.core.config import settings
+from src.news.exceptions import AlphaVantageRateLimitError
 
 
 API_BASE_URL = "https://www.alphavantage.co/query"
-
-class AlphaVantageRateLimitError(Exception):
-    """Exception raised when Alpha Vantage API rate limit is exceeded."""
-    pass
 
 
 def format_datetime_for_api(date_input) -> str:
