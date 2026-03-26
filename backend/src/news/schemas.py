@@ -8,10 +8,18 @@ class TickerSentimentResponse(BaseModel):
     relevance_score: float | None = Field(None, description="Relevance score of the ticker to the article")
     sentiment_score: float | None = Field(None, description="Sentiment score for this ticker")
 
+    model_config = {
+        "from_attributes": True,
+    }
+
 
 class TopicResponse(BaseModel):
     topic: str = Field(..., description="Topic name")
     relevance_score: float | None = Field(None, description="Relevance score of the topic to the article")
+
+    model_config = {
+        "from_attributes": True,
+    }
 
 
 class NewsArticleResponse(BaseModel):
