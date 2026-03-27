@@ -10,9 +10,10 @@ from starlette.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.redis import init_redis, close_redis
 from src.core.rate_limiter import RateLimiterMiddleware
-from src.news.scheduler import start_scheduler, stop_scheduler
+from src.news.scheduler import setup_scheduler, scheduler
 
-from src.router import router
+from src.auth.router import auth_route
+from src.news.router import news_route
 
 THIS_DIR = Path(__file__).parent
 
@@ -20,23 +21,21 @@ THIS_DIR = Path(__file__).parent
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
     await init_redis()
-    start_scheduler()
-    yield
-    stop_scheduler()
-    await close_redis()
+    logger.info("Starting Scheduler")
+    setup_scheduler()
 
-# ── OpenAPI tags for docs grouping ──
-tags_metadata = [
-    {"name": "auth", "description": "Authentication & user management"},
-    {"name": "News", "description": "Market news & sentiment"},
-]
+    yield
+
+    await close_redis()
+    logger.info("Shutting down scheduler")
+    scheduler.shutdown()
+
 
 app = FastAPI(
     title="MarketMind",
     description="MarketMind API Documentation",
     version="1.0",
     lifespan=lifespan,
-    openapi_tags=tags_metadata,
 )
 
 
@@ -79,4 +78,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def health_check():
     return {"status": "ok", "version": "1.0"}
 
-app.include_router(router)
+
+# ── Router ──
+
+app.include_router(news_route)
+app.include_router(auth_route)
