@@ -17,7 +17,7 @@ services:
       - backend-network
 
   db:
-    image: postgres:15-alpine
+    image: timescale/timescaledb:latest-pg15
     container_name: marketmind-db
     env_file:
       - .env

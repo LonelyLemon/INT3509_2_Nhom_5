@@ -10,7 +10,6 @@ from starlette.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.redis import init_redis, close_redis
 from src.core.rate_limiter import RateLimiterMiddleware
-from src.news.scheduler import setup_scheduler, scheduler
 
 from src.auth.router import auth_route
 from src.news.router import news_route
@@ -21,14 +20,10 @@ THIS_DIR = Path(__file__).parent
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
     await init_redis()
-    logger.info("Starting Scheduler")
-    setup_scheduler()
 
     yield
 
     await close_redis()
-    logger.info("Shutting down scheduler")
-    scheduler.shutdown()
 
 
 app = FastAPI(

@@ -9,6 +9,7 @@ dependencies = [
     "apscheduler>=3.10.0",
     "asyncpg>=0.31.0",
     "bcrypt>=5.0.0",
+    "celery>=5.6.3",
     "fastapi>=0.135.1",
     "fastapi-mail>=1.6.2",
     "httpx>=0.28.1",
@@ -28,3 +29,8 @@ dependencies = [
     "uvicorn>=0.41.0",
     "yfinance>=1.2.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
