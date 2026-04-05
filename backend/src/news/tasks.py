@@ -1,77 +1,84 @@
-import json
 import asyncio
-import logging
 
-from datetime import timedelta
+from loguru import logger
 from sqlalchemy import select
 
-from src.core.database import SessionLocal
-from src.utils.datetime_util import time_now
+from src.core.celery import celery_app
+from src.core.database import TaskSessionLocal
+from src.news.get_news import get_tickers_news, parse_yfinance_news_item
 from src.news.models import NewsArticle
-from src.news.get_news import (
-    get_news as fetch_ticker_news, 
-    get_global_news as fetch_global_news, 
-    parse_article_json
-)
+from src.price.models import Asset
 
-logger = logging.getLogger(__name__)
+# How many news items to request per ticker per run.
+NEWS_PER_TICKER = 10
 
-async def process_and_save_news(raw_response, limit: int):
-    if isinstance(raw_response, str):
-        try:
-            json.loads(raw_response)
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON received from Alpha Vantage in scheduled task.")
+
+@celery_app.task(name="src.news.tasks.ingest_assets_news")
+def ingest_assets_news():
+    """
+    Celery task: fetch recent news for every active asset in the database
+    and persist only articles not already stored (URL-deduplicated).
+
+    Scheduled via Celery Beat — do NOT start APScheduler alongside this.
+    """
+    asyncio.run(_ingest_assets_news())
+
+
+async def _ingest_assets_news():
+    async with TaskSessionLocal() as db:
+        # 1. Resolve active tickers from DB.
+        result = await db.execute(select(Asset.ticker).where(Asset.is_active == True))
+        tickers = result.scalars().all()
+        if not tickers:
+            logger.info("No active assets — skipping news ingestion.")
             return
-    else:
-        data = raw_response
 
-    feed = data.get("feed", [])[:limit]
-    if not feed:
-        return
-    
-    async with SessionLocal() as db:
-        incoming_urls = [article.get("url") for article in feed if article.get("url")]
-        existing_records = await db.execute(
-            select(NewsArticle.url).where(NewsArticle.url.in_(incoming_urls))
+        logger.info(f"Fetching news for {len(tickers)} active assets…")
+
+        # 2. Collect raw items from yfinance (includes cross-ticker dedup by URL).
+        #    This is blocking I/O (HTTP), so run it in a thread.
+        raw_pairs: list[tuple[str, dict]] = await asyncio.to_thread(
+            get_tickers_news, list(tickers), NEWS_PER_TICKER
         )
-        existing_urls = set(existing_records.scalars().all())
 
-        new_articles = []
-        for item in feed:
-            url = item.get("url")
-            if url and url not in existing_urls:
-                article_model = parse_article_json(item)
-                new_articles.append(article_model)
-                existing_urls.add(url)
-                
-        if new_articles:
-            db.add_all(new_articles)
-            await db.commit()
-            logger.info(f"Scheduler saved {len(new_articles)} new articles.")
-    
-async def scheduled_fetch_global_news():
-    """Task to fetch global market news."""
-    logger.info("Running scheduled global news fetch...")
-    now = time_now()
-    limit = 50
-    look_back_days = 7
-    
-    raw_response = await asyncio.to_thread(
-        fetch_global_news, now, look_back_days, limit
-    )
-    await process_and_save_news(raw_response, limit)
+        if not raw_pairs:
+            logger.info("No news items returned from yfinance.")
+            return
+
+        # 3. Bulk-check which URLs are already in the DB — one query, not N.
+        candidate_urls = [url for _, item in raw_pairs if (url := _url(item))]
+        existing_result = await db.execute(
+            select(NewsArticle.url).where(NewsArticle.url.in_(candidate_urls))
+        )
+        existing_urls: set[str] = set(existing_result.scalars().all())
+
+        # 4. Parse and collect only truly new articles.
+        new_articles: list[NewsArticle] = []
+        for source_ticker, item in raw_pairs:
+            url = _url(item)
+            if not url or url in existing_urls:
+                continue
+            article = parse_yfinance_news_item(item, source_ticker)
+            if article:
+                new_articles.append(article)
+                existing_urls.add(url)  # prevent intra-batch duplicates
+
+        if not new_articles:
+            logger.info("All fetched articles already exist in the database.")
+            return
+
+        db.add_all(new_articles)
+        await db.commit()
+        logger.info(
+            f"Saved {len(new_articles)} new articles "
+            f"(from {len(raw_pairs)} fetched across {len(tickers)} tickers)."
+        )
 
 
-async def scheduled_fetch_ticker_news(ticker: str):
-    """Task to fetch news for a specific ticker."""
-    logger.info(f"Running scheduled ticker news fetch for {ticker}...")
-    now = time_now()
-    limit = 50
-    look_back_days = 7
-    start_date = now - timedelta(days=look_back_days)
-    
-    raw_response = await asyncio.to_thread(
-        fetch_ticker_news, ticker, start_date, now, limit
-    )
-    await process_and_save_news(raw_response, limit)
+def _url(item: dict) -> str | None:
+    """Inline URL extractor — avoids importing the private helper."""
+    content = item.get("content", {})
+    if content:
+        canonical = content.get("canonicalUrl") or {}
+        return canonical.get("url") or content.get("url") or item.get("link")
+    return item.get("link")

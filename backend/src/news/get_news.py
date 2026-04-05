@@ -1,105 +1,179 @@
-from datetime import datetime, timezone, timedelta
+"""
+News fetching via yfinance (Yahoo Finance).
 
-from src.news.utils import _make_api_request, format_datetime_for_api
-from src.news.models import NewsArticle, NewsArticleTicker, NewsArticleTopic
+yfinance returns news items in two formats depending on the version:
+  v1.x  — nested:  item["content"]["title"], item["content"]["canonicalUrl"]["url"], …
+  v0.2.x — flat:   item["title"], item["link"], item["providerPublishTime"], …
 
-# ── Alpha Vantage fetch helpers ──
+All public helpers are written to handle both layouts defensively.
+"""
 
-def get_news(ticker: str, start_date, end_date, limit: int = 5) -> dict | str:
-    """Fetch news from Alpha Vantage for a specific ticker."""
-    params = {
-        "tickers": ticker,
-        "time_from": format_datetime_for_api(start_date),
-        "time_to": format_datetime_for_api(end_date),
-        "sort": "LATEST",
-        "limit": limit,
-    }
-    return _make_api_request("NEWS_SENTIMENT", params)
+import time
+from datetime import datetime, timezone
 
+import yfinance as yf
+from loguru import logger
 
-def get_global_news(curr_date: datetime, look_back_days: int = 7, limit: int = 5) -> dict | str:
-    """Fetch global market news from Alpha Vantage."""
-    start_dt = curr_date - timedelta(days=look_back_days)
+from src.news.models import NewsArticle, NewsArticleTicker
 
-    params = {
-        "topics": "financial_markets,economy_macro,economy_monetary",
-        "time_from": format_datetime_for_api(start_dt),
-        "time_to": format_datetime_for_api(curr_date),
-        "limit": str(limit),
-    }
-    return _make_api_request("NEWS_SENTIMENT", params)
-
-# ──  Parsing ──
-
-def _parse_published_time(time_str: str) -> datetime:
-    """Parse Alpha Vantage time format '20260318T081300' into a datetime."""
-    return datetime.strptime(time_str, "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+# Polite delay between per-ticker API calls to avoid Yahoo rate-limiting.
+_REQUEST_DELAY = 0.3  # seconds
 
 
-def parse_article_json(article_data: dict) -> NewsArticle:
+# ── Low-level field extractors ──────────────────────────────────────────────
+
+def _extract_url(item: dict) -> str | None:
+    """Return the canonical URL from a yfinance news item (both formats)."""
+    content = item.get("content", {})
+    if content:
+        canonical = content.get("canonicalUrl") or {}
+        url = canonical.get("url") or content.get("url")
+        if url:
+            return url
+    return item.get("link")
+
+
+def _extract_title(item: dict) -> str:
+    content = item.get("content", {})
+    return (content.get("title") if content else None) or item.get("title", "")
+
+
+def _extract_summary(item: dict) -> str:
+    content = item.get("content", {})
+    return (content.get("summary") if content else None) or ""
+
+
+def _extract_published_at(item: dict) -> datetime | None:
+    content = item.get("content", {})
+    if content:
+        pub = content.get("pubDate") or content.get("publishedAt")
+        if pub:
+            try:
+                return datetime.fromisoformat(pub.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+    # v0.2.x: Unix timestamp
+    ts = item.get("providerPublishTime")
+    if ts:
+        return datetime.fromtimestamp(int(ts), tz=timezone.utc)
+    return None
+
+
+def _extract_source(item: dict) -> tuple[str | None, str | None]:
+    """Return (source_name, source_domain)."""
+    content = item.get("content", {})
+    if content:
+        provider = content.get("provider") or {}
+        name = provider.get("displayName") or provider.get("name")
+        domain = provider.get("url") or ""
+        # strip scheme from domain string
+        for scheme in ("https://", "http://"):
+            if domain.startswith(scheme):
+                domain = domain[len(scheme):]
+                break
+        return name or None, domain or None
+    return item.get("publisher"), None
+
+
+def _extract_related_tickers(item: dict) -> list[str]:
+    """Return related ticker symbols from a yfinance news item."""
+    content = item.get("content", {})
+    if content:
+        related = content.get("relatedTickers") or []
+        # v1.x: [{"symbol": "AAPL", "isPrimary": true}, …]
+        if related and isinstance(related[0], dict):
+            return [t["symbol"] for t in related if t.get("symbol")]
+        # fallback flat list inside content
+        return [str(t) for t in related if t]
+    # v0.2.x: ["AAPL", "TSLA", …]
+    return [str(t) for t in item.get("relatedTickers", []) if t]
+
+
+# ── Public fetch helpers ────────────────────────────────────────────────────
+
+def get_ticker_news(ticker: str, count: int = 20) -> list[dict]:
+    """Fetch news items for a single ticker via yfinance."""
+    try:
+        items = yf.Ticker(ticker).news or []
+        return items[:count]
+    except Exception as e:
+        logger.warning(f"yfinance news fetch failed for {ticker}: {e}")
+        return []
+
+
+def get_tickers_news(tickers: list[str], count_per_ticker: int = 10) -> list[tuple[str, dict]]:
     """
-    Parses a single article JSON item from Alpha Vantage into a NewsArticle SQLAlchemy model.
+    Fetch news for every ticker in the list.
+
+    Returns a list of (source_ticker, raw_item) pairs with URL-level
+    deduplication already applied across tickers.
     """
-    # 1. Parse published time using the helpers
-    published_time_str = article_data.get("time_published")
-    published_at = _parse_published_time(published_time_str) if published_time_str else None
+    seen_urls: set[str] = set()
+    results: list[tuple[str, dict]] = []
 
-    # 2. Process topics and determine the primary topic
-    topics_list = []
-    primary_topic = None
-    max_topic_relevance = -1.0
+    for ticker in tickers:
+        try:
+            items = get_ticker_news(ticker, count_per_ticker)
+        except Exception as e:
+            logger.warning(f"Skipping ticker {ticker} due to error: {e}")
+            items = []
+        for item in items:
+            url = _extract_url(item)
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                results.append((ticker, item))
+        time.sleep(_REQUEST_DELAY)
 
-    for t_data in article_data.get("topics", []):
-        relevance = float(t_data.get("relevance_score", 0.0))
-        topic_name = t_data.get("topic")
+    return results
 
-        topics_list.append(NewsArticleTopic(
-            topic=topic_name,
-            relevance_score=relevance
-        ))
 
-        if relevance > max_topic_relevance:
-            max_topic_relevance = relevance
-            primary_topic = topic_name
-        
-    # 3. Process tickers and determine the primary ticker
-    tickers_list = []
-    primary_ticker = None
-    max_ticker_relevance = -1.0
+# ── Parser ──────────────────────────────────────────────────────────────────
 
-    for t_data in article_data.get("ticker_sentiment", []):
-        relevance = float(t_data.get("relevance_score", 0.0))
-        sentiment = float(t_data.get("ticker_sentiment_score", 0.0))
-        ticker_name = t_data.get("ticker")
+def parse_yfinance_news_item(item: dict, source_ticker: str) -> NewsArticle | None:
+    """
+    Convert a raw yfinance news dict into a NewsArticle ORM model.
+    Returns None if the item is missing essential fields (title or URL).
+    """
+    title = _extract_title(item)[:512]
+    if not title:
+        return None
 
-        tickers_list.append(NewsArticleTicker(
-            ticker=ticker_name,
-            relevance_score=relevance,
-            sentiment_score=sentiment
-        ))
+    url = _extract_url(item)
+    if not url:
+        return None
+    url = url[:1024]
 
-        if relevance > max_ticker_relevance:
-            max_ticker_relevance = relevance
-            primary_ticker = ticker_name
-    
-    # 4. Construct the main NewsArticle model
-    title = article_data.get("title", "")[:512]
-    url = article_data.get("url", "")[:1024]
+    published_at = _extract_published_at(item)
+    if not published_at:
+        return None
 
-    article = NewsArticle(
+    summary = _extract_summary(item)
+    source_name, source_domain = _extract_source(item)
+    related = _extract_related_tickers(item)
+
+    # Build NewsArticleTicker rows; ensure the fetch ticker is always present.
+    seen: set[str] = set()
+    tickers_list: list[NewsArticleTicker] = []
+
+    for symbol in [source_ticker] + related:
+        if symbol and symbol not in seen:
+            seen.add(symbol)
+            tickers_list.append(
+                NewsArticleTicker(ticker=symbol, relevance_score=None, sentiment_score=None)
+            )
+
+    return NewsArticle(
         title=title,
-        summary=article_data.get("summary", ""),
+        summary=summary,
         published_at=published_at,
-        authors=article_data.get("authors", []),
+        authors=None,
         url=url,
-        source=article_data.get("source"),
-        source_domain=article_data.get("source_domain"),
-        primary_topic=primary_topic,
-        primary_ticker=primary_ticker,
-        overall_sentiment_score=article_data.get("overall_sentiment_score"),
-        overall_sentiment_label=article_data.get("overall_sentiment_label"),
+        source=source_name,
+        source_domain=source_domain,
+        primary_ticker=source_ticker,
+        primary_topic=None,
+        overall_sentiment_score=None,
+        overall_sentiment_label=None,
         tickers=tickers_list,
-        topics=topics_list,
+        topics=[],
     )
-
-    return article
