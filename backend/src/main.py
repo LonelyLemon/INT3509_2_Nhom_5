@@ -13,6 +13,7 @@ from src.core.rate_limiter import RateLimiterMiddleware
 
 from src.auth.router import auth_route
 from src.news.router import news_route
+from src.price.router import price_route
 
 THIS_DIR = Path(__file__).parent
 
@@ -78,3 +79,4 @@ async def health_check():
 
 app.include_router(news_route)
 app.include_router(auth_route)
+app.include_router(price_route)
