@@ -28,8 +28,13 @@ services:
       - .env.dev
     volumes:
       # Hot-reload: local source overwrites the image copy
-      - ./src:/app/src
-      - ./alembic:/app/alembic
+      # - ./src:/app/src
+      # - ./alembic:/app/alembic
+      - ./src:/app/src:Z
+      - ./alembic:/app/alembic:Z # trong trường hợp cần dùng để qua bảo mật SELinux
+    # test thử thêm working dir và command
+    working_dir: /app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:
         condition: service_healthy
@@ -48,7 +53,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     container_name: marketmind-celery-worker
-    command: ["celery", "-A", "src.core.celery", "worker", "--loglevel=debug", "--concurrency=2"]
+    # command: ["celery", "-A", "src.core.celery", "worker", "--loglevel=debug", "--concurrency=2"]
+    command: ["celery", "-A", "celery", "worker", "--loglevel=debug", "--concurrency=2"] # trong trường hợp bị lỗi ModuleNotFoundError: No module named 'src.core'
     env_file:
       - .env.dev
     volumes:
@@ -71,7 +77,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     container_name: marketmind-celery-beat
-    command: ["celery", "-A", "src.core.celery", "beat", "--loglevel=debug"]
+    # command: ["celery", "-A", "src.core.celery", "beat", "--loglevel=debug"]
+    command: ["celery", "-A", "celery", "beat", "--loglevel=debug"] # trong trường hợp bị lỗi ModuleNotFoundError: No module named 'src.core'
     env_file:
       - .env.dev
     volumes:
