@@ -1,0 +1,154 @@
+# =============================================================
+# Docker Compose — PRODUCTION environment
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Features:
+#   - Multi-worker uvicorn (non-root, bytecode-compiled image)
+#   - PostgreSQL and Redis ports NOT exposed to host
+#   - Resource limits to prevent runaway containers
+#   - Restart policy: always
+# =============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # FastAPI application (production)
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: marketmind-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  # ----------------------------------------------------------
+  # Celery worker (production)
+  # ----------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: marketmind-celery-worker
+    command: ["celery", "-A", "src.core.celery", "worker", "--loglevel=info", "--concurrency=4"]
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ----------------------------------------------------------
+  # Celery beat scheduler (production)
+  # ----------------------------------------------------------
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: marketmind-celery-beat
+    command: ["celery", "-A", "src.core.celery", "beat", "--loglevel=info"]
+    env_file:
+      - .env
+    volumes:
+      - celerybeat_data:/app/celerybeat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  # ----------------------------------------------------------
+  # PostgreSQL + TimescaleDB (production)
+  # ----------------------------------------------------------
+  db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: marketmind-db
+    env_file:
+      - .env
+    # No host port mapping in production — internal network only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - backend-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ----------------------------------------------------------
+  # Redis (production)
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: marketmind-redis
+    # No host port mapping in production — internal network only
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  celerybeat_data:

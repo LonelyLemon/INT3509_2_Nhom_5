@@ -1,0 +1,140 @@
+# =============================================================
+# Docker Compose — DEVELOPMENT environment
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Features:
+#   - Source code mounted as volume → uvicorn --reload works
+#   - Celery worker + beat run alongside the API
+#   - PostgreSQL (TimescaleDB) and Redis ports exposed to host
+#     so you can connect with local tools (psql, redis-cli, etc.)
+# =============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # FastAPI application (dev)
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: marketmind-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.dev
+    volumes:
+      # Hot-reload: local source overwrites the image copy
+      - ./src:/app/src
+      - ./alembic:/app/alembic
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Celery worker (dev)
+  # ----------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: marketmind-celery-worker
+    command: ["celery", "-A", "src.core.celery", "worker", "--loglevel=debug", "--concurrency=2"]
+    env_file:
+      - .env.dev
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Celery beat scheduler (dev)
+  # ----------------------------------------------------------
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: marketmind-celery-beat
+    command: ["celery", "-A", "src.core.celery", "beat", "--loglevel=debug"]
+    env_file:
+      - .env.dev
+    volumes:
+      - ./src:/app/src
+      # Persist the beat schedule so it survives container restarts
+      - celerybeat_data:/app/celerybeat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # PostgreSQL + TimescaleDB
+  # ----------------------------------------------------------
+  db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: marketmind-db
+    env_file:
+      - .env.dev
+    ports:
+      # Exposed on 5433 to avoid conflicts with a local PostgreSQL on 5432
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Redis (message broker + cache)
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: marketmind-redis
+    ports:
+      # Exposed on 6380 to avoid conflicts with a local Redis on 6379
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  celerybeat_data:
