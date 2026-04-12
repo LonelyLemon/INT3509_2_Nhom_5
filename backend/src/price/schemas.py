@@ -45,3 +45,23 @@ class PriceHistoryResponse(BaseModel):
     ticker: str = Field(..., description="The requested ticker symbol")
     timeframe: str = Field(..., description="The requested timeframe (e.g., 1d, 15m)")
     data: list[PriceDataResponse] = Field(..., description="Chronological list of price points")
+
+
+class AssetUpdate(BaseModel):
+    """Fields the admin may update on a tracked ticker."""
+    name: str | None = Field(None, description="Display name")
+    asset_type: AssetType | None = Field(None, description="Asset category")
+    is_active: bool | None = Field(None, description="Whether this ticker is actively ingested")
+
+
+class LatestPriceResponse(BaseModel):
+    """Most recent OHLCV candle — for live price display."""
+    ticker: str
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+    model_config = {"from_attributes": True}
