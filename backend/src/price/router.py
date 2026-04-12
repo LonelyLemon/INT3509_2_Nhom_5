@@ -17,7 +17,7 @@ from src.price.schemas import (
     LatestPriceResponse,
 )
 from src.price.constants import AssetType
-from src.price.exceptions import AssetNotFound, AssetAlreadyExists, InvalidTimeframe
+from src.price.exceptions import AssetNotFound, AssetAlreadyExists, InvalidTimeframe, NoPriceDataAvailable
 
 price_route = APIRouter(prefix="/price", tags=["Price"])
 
@@ -268,7 +268,7 @@ async def get_latest_price(ticker: str, db: SessionDep):
     )).scalar_one_or_none()
 
     if not row:
-        raise AssetNotFound()
+        raise NoPriceDataAvailable()
 
     return LatestPriceResponse(
         ticker=ticker.upper(),

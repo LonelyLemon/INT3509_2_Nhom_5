@@ -21,7 +21,7 @@ class Asset(Base):
 
     # Relationships
     price_data: Mapped[list["PriceData"]] = relationship(
-        back_populates="asset", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="asset", cascade="all, delete-orphan", lazy="noload"
     )
 
 
