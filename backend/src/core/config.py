@@ -58,6 +58,10 @@ class Settings(CustomBaseSettings):
     # Alpha Vantage API Key
     ALPHA_VANTAGE_API_KEY: str
 
+    # Admin Account
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
+
     @computed_field
     @property
     def ASYNC_DATABASE_URI(self) -> PostgresDsn:
