@@ -159,21 +159,16 @@ def parse_yfinance_news_item(item: dict, source_ticker: str) -> NewsArticle | No
         if symbol and symbol not in seen:
             seen.add(symbol)
             tickers_list.append(
-                NewsArticleTicker(ticker=symbol, relevance_score=None, sentiment_score=None)
+                NewsArticleTicker(ticker=symbol, relevance_score=None)
             )
 
     return NewsArticle(
         title=title,
-        summary=summary,
+        summary=summary or None,
         published_at=published_at,
         authors=None,
         url=url,
         source=source_name,
         source_domain=source_domain,
-        primary_ticker=source_ticker,
-        primary_topic=None,
-        overall_sentiment_score=None,
-        overall_sentiment_label=None,
         tickers=tickers_list,
-        topics=[],
     )
