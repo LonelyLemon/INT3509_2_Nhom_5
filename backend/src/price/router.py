@@ -1,9 +1,10 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, text
+from sqlalchemy import select, text, or_
 
 from src.core.database import SessionDep
+from src.core.redis import get_redis
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 from src.auth.exceptions import InsufficientPermissions
@@ -17,11 +18,24 @@ from src.price.schemas import (
     LatestPriceResponse,
 )
 from src.price.constants import AssetType
-from src.price.exceptions import AssetNotFound, AssetAlreadyExists, InvalidTimeframe
+from src.price.exceptions import AssetNotFound, AssetAlreadyExists, InvalidTimeframe, NoPriceDataAvailable
 
 price_route = APIRouter(prefix="/price", tags=["Price"])
 
 VALID_TIMEFRAMES = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
+
+# Cache TTL per timeframe — aligned to how often new candles appear.
+# Slightly shorter than the candle interval so a fresh poll catches the new candle promptly.
+_HISTORY_TTL: dict[str, int] = {
+    "1m":  45,
+    "5m":  4 * 60,
+    "15m": 13 * 60,
+    "30m": 28 * 60,
+    "1h":  55 * 60,
+    "4h":  3 * 60 * 60 + 50 * 60,
+    "1d":  23 * 60 * 60,
+}
+_LATEST_TTL = 45  # seconds
 
 # Maps API timeframe strings to PostgreSQL interval expressions used by time_bucket().
 TIMEFRAME_INTERVAL: dict[str, str] = {
@@ -43,13 +57,22 @@ TIMEFRAME_INTERVAL: dict[str, str] = {
 @price_route.get("/tickers", response_model=list[AssetResponse])
 async def list_tickers(
     db: SessionDep,
+    q: str | None = Query(None, description="Search by ticker symbol or asset name (partial match)"),
     asset_type: AssetType | None = Query(None, description="Filter by asset category"),
     is_active: bool | None = Query(None, description="Filter by active status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
-    """List all tracked tickers. Optionally filter by category or active status."""
+    """List all tracked tickers. Supports search by symbol/name and filtering by category or active status."""
     stmt = select(Asset)
+    if q is not None:
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                Asset.ticker.ilike(pattern),
+                Asset.name.ilike(pattern),
+            )
+        )
     if asset_type is not None:
         stmt = stmt.where(Asset.asset_type == asset_type)
     if is_active is not None:
@@ -193,12 +216,22 @@ async def get_price_history(
       aggregation — no need to ingest multiple timeframes separately.
 
     Data is returned in ascending timestamp order (oldest first), ready for
-    chart rendering.
+    chart rendering. Results are cached in Redis with a TTL aligned to the
+    requested timeframe.
     """
     if timeframe not in VALID_TIMEFRAMES:
         raise InvalidTimeframe()
 
-    result = await db.execute(select(Asset).where(Asset.ticker == ticker.upper()))
+    ticker = ticker.upper()
+    cache_key = f"price:history:{ticker}:{timeframe}:{limit}:{start}:{end}"
+    redis = get_redis()
+
+    if redis:
+        cached = await redis.get(cache_key)
+        if cached:
+            return PriceHistoryResponse.model_validate_json(cached)
+
+    result = await db.execute(select(Asset).where(Asset.ticker == ticker))
     asset = result.scalar_one_or_none()
     if not asset:
         raise AssetNotFound()
@@ -245,37 +278,64 @@ async def get_price_history(
         })).mappings().all()
         data = [PriceDataResponse.model_validate(dict(row)) for row in reversed(rows)]
 
-    return PriceHistoryResponse(ticker=ticker.upper(), timeframe=timeframe, data=data)
+    response = PriceHistoryResponse(ticker=ticker, timeframe=timeframe, data=data)
+
+    if redis:
+        await redis.set(cache_key, response.model_dump_json(), ex=_HISTORY_TTL[timeframe])
+
+    return response
 
 
 @price_route.get("/{ticker}/latest", response_model=LatestPriceResponse)
 async def get_latest_price(ticker: str, db: SessionDep):
     """
-    Return the single most-recent 1m candle for a ticker.
-
-    Intended for live price display where only the current close is needed.
+    Return the most-recent 1m candle for a ticker, including change vs the
+    previous candle's close (change_amount, change_percentage).
+    Result is cached in Redis for 45 seconds.
     """
-    result = await db.execute(select(Asset).where(Asset.ticker == ticker.upper()))
+    ticker = ticker.upper()
+    cache_key = f"price:latest:{ticker}"
+    redis = get_redis()
+
+    if redis:
+        cached = await redis.get(cache_key)
+        if cached:
+            return LatestPriceResponse.model_validate_json(cached)
+
+    result = await db.execute(select(Asset).where(Asset.ticker == ticker))
     asset = result.scalar_one_or_none()
     if not asset:
         raise AssetNotFound()
 
-    row = (await db.execute(
+    rows = (await db.execute(
         select(PriceData)
         .where(PriceData.asset_id == asset.id, PriceData.timeframe == "1m")
         .order_by(PriceData.timestamp.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+        .limit(2)
+    )).scalars().all()
 
-    if not row:
-        raise AssetNotFound()
+    if not rows:
+        raise NoPriceDataAvailable()
 
-    return LatestPriceResponse(
-        ticker=ticker.upper(),
-        timestamp=row.timestamp,
-        open=row.open,
-        high=row.high,
-        low=row.low,
-        close=row.close,
-        volume=row.volume,
+    latest = rows[0]
+    prev_close = rows[1].close if len(rows) == 2 else None
+
+    change_amount = round(latest.close - prev_close, 6) if prev_close is not None else None
+    change_percentage = round((change_amount / prev_close) * 100, 4) if prev_close else None
+
+    response = LatestPriceResponse(
+        ticker=ticker,
+        timestamp=latest.timestamp,
+        open=latest.open,
+        high=latest.high,
+        low=latest.low,
+        close=latest.close,
+        volume=latest.volume,
+        change_amount=change_amount,
+        change_percentage=change_percentage,
     )
+
+    if redis:
+        await redis.set(cache_key, response.model_dump_json(), ex=_LATEST_TTL)
+
+    return response

@@ -63,5 +63,7 @@ class LatestPriceResponse(BaseModel):
     low: float
     close: float
     volume: float
+    change_amount: float | None = Field(None, description="Price change vs previous close")
+    change_percentage: float | None = Field(None, description="Percentage change vs previous close")
 
     model_config = {"from_attributes": True}

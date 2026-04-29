@@ -7,9 +7,14 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
+from sqlalchemy import select
+
 from src.core.config import settings
+from src.core.database import SessionLocal
 from src.core.redis import init_redis, close_redis
 from src.core.rate_limiter import RateLimiterMiddleware
+from src.auth.models import User
+from src.auth.security import hash_password
 
 from src.auth.router import auth_route
 from src.news.router import news_route
@@ -17,10 +22,31 @@ from src.price.router import price_route
 
 THIS_DIR = Path(__file__).parent
 
+async def create_admin_user():
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.email == settings.ADMIN_EMAIL)
+        )
+        if result.scalar_one_or_none() is None:
+            admin = User(
+                username="admin",
+                email=settings.ADMIN_EMAIL,
+                password_hash=hash_password(settings.ADMIN_PASSWORD),
+                is_verified=True,
+                role="admin",
+            )
+            session.add(admin)
+            await session.commit()
+            logger.info(f"Admin user created: {settings.ADMIN_EMAIL}")
+        else:
+            logger.info("Admin user already exists, skipping creation")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
     await init_redis()
+    await create_admin_user()
 
     yield
 
