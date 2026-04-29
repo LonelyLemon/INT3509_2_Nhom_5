@@ -3,14 +3,19 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (String, Text, Float, TIMESTAMP, ARRAY,
-                        ForeignKey, UniqueConstraint)
+                        ForeignKey, UniqueConstraint, Index)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base_model import Base
+from src.news.constants import NewsCategory
 
 
 class NewsArticle(Base):
     __tablename__ = "news_articles"
+    __table_args__ = (
+        Index("ix_news_articles_category", "category"),
+        Index("ix_news_articles_sentiment_label", "sentiment_label"),
+    )
 
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -19,6 +24,9 @@ class NewsArticle(Base):
     url: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
     source: Mapped[str | None] = mapped_column(String(256), nullable=True)
     source_domain: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    sentiment_label: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships
     tickers: Mapped[list["NewsArticleTicker"]] = relationship(
