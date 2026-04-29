@@ -4,12 +4,14 @@ from enum import Enum
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, delete as sa_delete
+from sqlalchemy import select, func, delete as sa_delete, or_
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 from src.auth.exceptions import InsufficientPermissions
 from src.core.database import SessionDep
+from src.news.constants import NewsCategory, SentimentLabel, asset_type_to_category
+from src.news.sentiment import analyze_sentiment
 from src.news.models import NewsArticle, NewsArticleTicker
 from src.news.schemas import (
     NewsArticleResponse,
@@ -19,6 +21,7 @@ from src.news.schemas import (
 )
 from src.news.get_news import get_ticker_news, parse_yfinance_news_item
 from src.news.exceptions import ArticleNotFound, ArticleAlreadyExists, InvalidNewsQuery, NewsProviderError
+from src.price.models import Asset
 
 news_route = APIRouter(
     prefix="/news",
@@ -65,6 +68,11 @@ async def fetch_and_save_news(
             "status": "queued",
         }
 
+    # Derive category from the asset's type if it exists in the DB.
+    asset_result = await db.execute(select(Asset).where(Asset.ticker == ticker.upper()))
+    asset = asset_result.scalar_one_or_none()
+    category = asset_type_to_category(asset.asset_type) if asset else None
+
     raw_items: list[dict] = await asyncio.to_thread(get_ticker_news, ticker, limit)
 
     if not raw_items:
@@ -81,7 +89,7 @@ async def fetch_and_save_news(
         url = _url(item)
         if not url or url in existing_urls:
             continue
-        article = parse_yfinance_news_item(item, ticker)
+        article = parse_yfinance_news_item(item, ticker, category=category)
         if article:
             new_articles.append(article)
             existing_urls.add(url)
@@ -102,7 +110,10 @@ async def fetch_and_save_news(
 @news_route.get("", response_model=NewsArticleListResponse)
 async def get_news_list(
     db: SessionDep,
+    q: str | None = Query(None, description="Keyword search on title and summary (partial match)."),
     ticker: str | None = Query(None, description="Filter articles by ticker symbol."),
+    category: NewsCategory | None = Query(None, description="Filter by asset category."),
+    sentiment: SentimentLabel | None = Query(None, description="Filter by sentiment signal (BULLISH, BEARISH, NEUTRAL)."),
     from_date: datetime | None = Query(None, description="Filter articles published on or after this datetime (ISO 8601 UTC)."),
     to_date: datetime | None = Query(None, description="Filter articles published on or before this datetime (ISO 8601 UTC)."),
     source: str | None = Query(None, description="Filter by source domain (partial match)."),
@@ -131,6 +142,26 @@ async def get_news_list(
         base = select(NewsArticle)
         count_base = select(func.count()).select_from(NewsArticle)
 
+    if q:
+        pattern = f"%{q}%"
+        base = base.where(
+            or_(
+                NewsArticle.title.ilike(pattern),
+                NewsArticle.summary.ilike(pattern),
+            )
+        )
+        count_base = count_base.where(
+            or_(
+                NewsArticle.title.ilike(pattern),
+                NewsArticle.summary.ilike(pattern),
+            )
+        )
+    if category:
+        base = base.where(NewsArticle.category == category)
+        count_base = count_base.where(NewsArticle.category == category)
+    if sentiment:
+        base = base.where(NewsArticle.sentiment_label == sentiment)
+        count_base = count_base.where(NewsArticle.sentiment_label == sentiment)
     if from_date:
         base = base.where(NewsArticle.published_at >= from_date)
         count_base = count_base.where(NewsArticle.published_at >= from_date)
@@ -185,6 +216,8 @@ async def create_news_article(
         for t in payload.tickers
     ]
 
+    sentiment_label, sentiment_score = analyze_sentiment(payload.title, payload.summary)
+
     article = NewsArticle(
         title=payload.title,
         summary=payload.summary,
@@ -193,6 +226,9 @@ async def create_news_article(
         url=payload.url,
         source=payload.source,
         source_domain=payload.source_domain,
+        category=payload.category,
+        sentiment_label=sentiment_label,
+        sentiment_score=sentiment_score,
         tickers=ticker_rows,
     )
     db.add(article)
