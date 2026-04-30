@@ -14,7 +14,9 @@ from datetime import datetime, timezone
 import yfinance as yf
 from loguru import logger
 
+from src.news.constants import NewsCategory
 from src.news.models import NewsArticle, NewsArticleTicker
+from src.news.sentiment import analyze_sentiment
 
 # Polite delay between per-ticker API calls to avoid Yahoo rate-limiting.
 _REQUEST_DELAY = 0.3  # seconds
@@ -129,7 +131,11 @@ def get_tickers_news(tickers: list[str], count_per_ticker: int = 10) -> list[tup
 
 # ── Parser ──────────────────────────────────────────────────────────────────
 
-def parse_yfinance_news_item(item: dict, source_ticker: str) -> NewsArticle | None:
+def parse_yfinance_news_item(
+    item: dict,
+    source_ticker: str,
+    category: NewsCategory | None = None,
+) -> NewsArticle | None:
     """
     Convert a raw yfinance news dict into a NewsArticle ORM model.
     Returns None if the item is missing essential fields (title or URL).
@@ -162,6 +168,8 @@ def parse_yfinance_news_item(item: dict, source_ticker: str) -> NewsArticle | No
                 NewsArticleTicker(ticker=symbol, relevance_score=None)
             )
 
+    sentiment_label, sentiment_score = analyze_sentiment(title, summary or None)
+
     return NewsArticle(
         title=title,
         summary=summary or None,
@@ -170,5 +178,8 @@ def parse_yfinance_news_item(item: dict, source_ticker: str) -> NewsArticle | No
         url=url,
         source=source_name,
         source_domain=source_domain,
+        category=category,
+        sentiment_label=sentiment_label,
+        sentiment_score=sentiment_score,
         tickers=tickers_list,
     )
