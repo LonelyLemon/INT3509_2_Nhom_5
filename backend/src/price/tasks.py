@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone, timedelta
 from functools import partial
 
 import yfinance as yf
@@ -13,10 +12,11 @@ from src.core.database import TaskSessionLocal
 from src.price.models import Asset, PriceData
 
 BATCH_SIZE = 50
-# Rolling window for each ingestion run. Wide enough to tolerate a missed run
-# or short worker downtime, but narrow enough to avoid downloading stale data.
-# The upsert (on_conflict_do_nothing) discards anything already in the DB.
-LOOKBACK_MINUTES = 30
+# "1d" returns the most recent trading session's 1m bars from yfinance,
+# even outside market hours (yfinance uses its own cache for the last session).
+# The on_conflict_do_nothing upsert silently discards already-stored rows,
+# so running every minute with this period is always safe.
+DOWNLOAD_PERIOD = "1d"
 
 
 @celery_app.task(name="src.price.tasks.ingest_1m_price_data")
@@ -35,20 +35,15 @@ async def _ingest_1m_price_data():
         ticker_to_id: dict[str, uuid.UUID] = {a.ticker: a.id for a in active_assets}
         tickers = list(ticker_to_id.keys())
 
-        end = datetime.now(timezone.utc)
-        start = end - timedelta(minutes=LOOKBACK_MINUTES)
-
         for i in range(0, len(tickers), BATCH_SIZE):
             batch = tickers[i : i + BATCH_SIZE]
-            await _process_ticker_batch(db, batch, ticker_to_id, start, end)
+            await _process_ticker_batch(db, batch, ticker_to_id)
 
 
 async def _process_ticker_batch(
     db,
     tickers: list[str],
     ticker_to_id: dict[str, uuid.UUID],
-    start: datetime,
-    end: datetime,
 ):
     tickers_str = " ".join(tickers)
 
@@ -58,8 +53,7 @@ async def _process_ticker_batch(
         download_fn = partial(
             yf.download,
             tickers=tickers_str,
-            start=start,
-            end=end,
+            period=DOWNLOAD_PERIOD,
             interval="1m",
             group_by="ticker",
             progress=False,
@@ -68,6 +62,7 @@ async def _process_ticker_batch(
         df = await asyncio.to_thread(download_fn)
 
         if df.empty:
+            logger.warning(f"yfinance returned empty DataFrame for batch: {tickers}")
             return
 
         records: list[dict] = []
@@ -104,7 +99,7 @@ async def _process_ticker_batch(
         await db.commit()
         logger.info(
             f"Ingested {len(records)} price records for {len(tickers)} tickers "
-            f"({start.strftime('%H:%M')}–{end.strftime('%H:%M')} UTC)."
+            f"(period={DOWNLOAD_PERIOD})."
         )
 
     except Exception as e:
