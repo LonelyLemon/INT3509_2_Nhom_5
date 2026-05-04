@@ -1,0 +1,140 @@
+/**
+ * CandlestickChart — powered by TradingView Lightweight Charts.
+ *
+ * Lightweight Charts renders a proper candlestick series on a <canvas>,
+ * so wicks, bodies, and colours are pixel-perfect at any zoom level.
+ * The chart auto-fits to the container width via a ResizeObserver and
+ * updates grid/text/bg colours whenever the dark-mode class on <html> changes.
+ */
+import { useEffect, useRef, useMemo } from 'react';
+import {
+  createChart,
+  CandlestickSeries,
+  type IChartApi,
+  type ISeriesApi,
+  type CandlestickData,
+  type UTCTimestamp,
+  ColorType,
+} from 'lightweight-charts';
+import type { Candle } from '../../store/useMarketStore';
+
+interface Props {
+  candles: Candle[];
+  height?: number;
+}
+
+const BULL = '#22c55e'; // green-500
+const BEAR = '#ef4444'; // red-500
+
+function isDark() {
+  return document.documentElement.classList.contains('dark');
+}
+
+function themeOptions() {
+  const dark = isDark();
+  return {
+    layout: {
+      background: { type: ColorType.Solid, color: 'transparent' },
+      textColor: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.50)',
+    },
+    grid: {
+      vertLines: { color: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)' },
+      horzLines: { color: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)' },
+    },
+    rightPriceScale: {
+      borderVisible: false,
+      textColor: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.50)',
+    },
+    crosshair: {
+      vertLine: { color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)', labelBackgroundColor: dark ? '#1e293b' : '#e2e8f0', width: 1 as const },
+      horzLine: { color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)', labelBackgroundColor: dark ? '#1e293b' : '#e2e8f0', width: 1 as const },
+    },
+  };
+}
+
+export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+
+  // Convert candles → Lightweight Charts CandlestickData (sorted asc)
+  const lwData = useMemo<CandlestickData[]>(() => {
+    return [...candles]
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .map((c) => ({
+        time: (new Date(c.timestamp).getTime() / 1000) as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+  }, [candles]);
+
+  // Create chart once on mount
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height,
+      ...themeOptions(),
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+      },
+      handleScroll: true,
+      handleScale: true,
+    });
+
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: BULL,
+      downColor: BEAR,
+      borderUpColor: BULL,
+      borderDownColor: BEAR,
+      wickUpColor: BULL,
+      wickDownColor: BEAR,
+    });
+
+    chartRef.current = chart;
+    seriesRef.current = series;
+
+    // ── Resize observer: sync width with container ──────────────────────────
+    const ro = new ResizeObserver((entries) => {
+      chart.applyOptions({ width: entries[0].contentRect.width });
+    });
+    ro.observe(containerRef.current);
+
+    // ── MutationObserver: re-theme when dark class toggles on <html> ────────
+    const mo = new MutationObserver(() => {
+      chart.applyOptions(themeOptions());
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [height]);
+
+  // Feed data whenever candles change
+  useEffect(() => {
+    if (!seriesRef.current || !chartRef.current || !lwData.length) return;
+    seriesRef.current.setData(lwData);
+    chartRef.current.timeScale().fitContent();
+  }, [lwData]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height }}
+      className="rounded-xl overflow-hidden"
+    />
+  );
+};
