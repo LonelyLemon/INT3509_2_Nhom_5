@@ -43,7 +43,7 @@ async def _get_portfolio_or_404(db: SessionDep, portfolio_id: UUID, user_id: UUI
 
 
 async def _latest_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, float]:
-    """Return {asset_id: latest_close} using DISTINCT ON for each asset."""
+    """Return {asset_id: latest_close} — picks the most recent candle across all timeframes."""
     if not asset_ids:
         return {}
 
@@ -56,7 +56,7 @@ async def _latest_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, fl
                 order_by=PriceData.timestamp.desc(),
             ).label("rn"),
         )
-        .where(PriceData.asset_id.in_(asset_ids), PriceData.timeframe == "1d")
+        .where(PriceData.asset_id.in_(asset_ids))
         .subquery()
     )
     rows = await db.execute(select(subq.c.asset_id, subq.c.close).where(subq.c.rn == 1))
@@ -64,7 +64,7 @@ async def _latest_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, fl
 
 
 async def _latest_two_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, list[float]]:
-    """Return {asset_id: [latest_close, prev_close]} (list may have 1 element if only one row)."""
+    """Return {asset_id: [latest_close, prev_close]} across all timeframes."""
     if not asset_ids:
         return {}
 
@@ -77,7 +77,7 @@ async def _latest_two_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID
                 order_by=PriceData.timestamp.desc(),
             ).label("rn"),
         )
-        .where(PriceData.asset_id.in_(asset_ids), PriceData.timeframe == "1d")
+        .where(PriceData.asset_id.in_(asset_ids))
         .subquery()
     )
     rows = await db.execute(
