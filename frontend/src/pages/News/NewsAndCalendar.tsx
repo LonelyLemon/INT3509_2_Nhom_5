@@ -1,118 +1,380 @@
-import { useState } from "react";
-import { Clock } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Search, ExternalLink, TrendingUp, TrendingDown, Minus,
+  RefreshCw, ChevronLeft, ChevronRight, Newspaper, Tag,
+} from "lucide-react";
+import { api } from "../../lib/api";
 
-const newsData = [
-  { id: 1, time: "10:45 AM", title: "Federal Reserve Announces Rate Hold at 5.25%", source: "Reuters", tag: "Macro" },
-  { id: 2, time: "10:15 AM", title: "Tech Stocks Rally Disregards Higher Treasury Yields", source: "Bloomberg", tag: "Equities" },
-  { id: 3, time: "09:30 AM", title: "Jobless Claims Fall to Lowest Level Since August", source: "CNBC", tag: "Economy" },
-  { id: 4, time: "08:00 AM", title: "Oil Prices Surge Amid Middle East Tensions", source: "Wall Street Journal", tag: "Commodities" },
-  { id: 5, time: "Yesterday", title: "Apple Reports Strong Q3 Earnings, Beats Estimates", source: "MarketWatch", tag: "Earnings" },
-];
+// ── Types ────────────────────────────────────────────────────────────────────
 
-const calendarEvents = [
-  { id: 1, time: "13:30", flag: "🇺🇸", country: "USD", event: "Core PCE Price Index (MoM)", impact: "High", actual: "0.2%", forecast: "0.2%", prev: "0.1%" },
-  { id: 2, time: "13:30", flag: "🇺🇸", country: "USD", event: "Initial Jobless Claims", impact: "Medium", actual: "210K", forecast: "215K", prev: "212K" },
-  { id: 3, time: "14:45", flag: "🇺🇸", country: "USD", event: "Chicago PMI", impact: "Low", actual: "45.0", forecast: "46.0", prev: "44.0" },
-  { id: 4, time: "15:00", flag: "🇺🇸", country: "USD", event: "Pending Home Sales (MoM)", impact: "Medium", actual: "-1.5%", forecast: "1.0%", prev: "0.5%" },
-  { id: 5, time: "23:50", flag: "🇯🇵", country: "JPY", event: "Tokyo Core CPI (YoY)", impact: "High", actual: "-", forecast: "2.5%", prev: "2.4%" },
-];
+interface TickerRef { ticker: string; relevance_score: number | null }
+
+interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string | null;
+  published_at: string;
+  authors: string[] | null;
+  url: string;
+  source: string | null;
+  source_domain: string | null;
+  tickers: TickerRef[];
+  sentiment_label?: "BULLISH" | "BEARISH" | "NEUTRAL" | null;
+  sentiment_score?: number | null;
+  category?: string | null;
+}
+
+interface NewsListResponse {
+  items: NewsArticle[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function SentimentBadge({ label, score }: { label?: string | null; score?: number | null }) {
+  if (!label) return null;
+  if (label === "BULLISH") return (
+    <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+      <TrendingUp size={11} /> BULLISH {score != null ? `${(score * 100).toFixed(0)}%` : ""}
+    </span>
+  );
+  if (label === "BEARISH") return (
+    <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+      <TrendingDown size={11} /> BEARISH
+    </span>
+  );
+  return (
+    <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20">
+      <Minus size={11} /> NEUTRAL
+    </span>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="glass-card p-5 animate-pulse space-y-3">
+      <div className="flex gap-2 items-center">
+        <div className="h-4 w-16 bg-white/10 rounded" />
+        <div className="h-4 w-24 bg-white/10 rounded" />
+      </div>
+      <div className="h-5 w-4/5 bg-white/10 rounded" />
+      <div className="h-4 w-full bg-white/10 rounded" />
+      <div className="h-4 w-3/4 bg-white/10 rounded" />
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 15;
+const SENTIMENT_OPTIONS = ["All", "BULLISH", "BEARISH", "NEUTRAL"] as const;
 
 export const NewsAndCalendar = () => {
-  const [activeTab, setActiveTab] = useState<"news" | "calendar">("news");
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [tickerFilter, setTickerFilter] = useState("");
+  const [debouncedTicker, setDebouncedTicker] = useState("");
+  const [sentiment, setSentiment] = useState<typeof SENTIMENT_OPTIONS[number]>("All");
+
+  // Debounce search
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    clearTimeout(searchTimer.current ?? undefined);
+    searchTimer.current = setTimeout(() => { setDebouncedSearch(search); setPage(0); }, 400);
+    return () => clearTimeout(searchTimer.current ?? undefined);
+  }, [search]);
+
+  useEffect(() => {
+    clearTimeout(tickerTimer.current ?? undefined);
+    tickerTimer.current = setTimeout(() => { setDebouncedTicker(tickerFilter.toUpperCase()); setPage(0); }, 400);
+    return () => clearTimeout(tickerTimer.current ?? undefined);
+  }, [tickerFilter]);
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, string | number> = {
+        skip: page * PAGE_SIZE,
+        limit: PAGE_SIZE,
+        sort_by: "published_at",
+        order: "desc",
+      };
+      if (debouncedSearch) params.q = debouncedSearch;
+      if (debouncedTicker) params.ticker = debouncedTicker;
+      if (sentiment !== "All") params.sentiment = sentiment;
+
+      const res = await api.get<NewsListResponse>("/news", { params });
+      setArticles(res.data.items);
+      setTotal(res.data.total);
+    } catch {
+      setError("Failed to load news. Make sure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedSearch, debouncedTicker, sentiment]);
+
+  useEffect(() => { fetchNews(); }, [fetchNews]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-color)] p-6 overflow-hidden max-w-7xl mx-auto w-full">
-      
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Market Intel</h1>
-        <div className="flex bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg p-1">
-          <button 
-            onClick={() => setActiveTab("news")}
-            className={cn(
-              "px-6 py-2 rounded font-medium transition-colors cursor-pointer",
-              activeTab === "news" ? "bg-[var(--color-primary)] text-white" : "hover:text-[var(--color-primary)]"
-            )}
-          >
-            Latest News
-          </button>
-          <button 
-            onClick={() => setActiveTab("calendar")}
-            className={cn(
-              "px-6 py-2 rounded font-medium transition-colors cursor-pointer",
-              activeTab === "calendar" ? "bg-[var(--color-primary)] text-white" : "hover:text-[var(--color-primary)]"
-            )}
-          >
-            Economic Calendar
-          </button>
+    <div
+      id="news-page"
+      className="flex flex-col min-h-full bg-[var(--bg-color)] text-[var(--text-color)]"
+    >
+      {/* ── Hero header ── */}
+      <div className="relative overflow-hidden px-6 pt-8 pb-6 border-b border-[var(--border-color)]">
+        <div
+          className="absolute inset-0 opacity-5 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 60% 60% at 50% 0%, var(--color-primary), transparent)" }}
+        />
+        <div className="relative max-w-5xl mx-auto">
+          <div className="flex items-center gap-3 mb-1">
+            <Newspaper size={22} className="text-[var(--color-primary)]" />
+            <h1 className="text-2xl font-bold tracking-tight">Market News</h1>
+          </div>
+          <p className="text-sm text-[var(--text-color)]/50 mb-5">
+            {total > 0 ? `${total.toLocaleString()} articles in the database` : "Live financial news feed"}
+          </p>
+
+          {/* ── Search + filters ── */}
+          <div className="flex flex-wrap gap-3">
+            {/* Keyword search */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-color)]/40" />
+              <input
+                id="news-search"
+                type="text"
+                placeholder="Search headlines…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+              />
+            </div>
+
+            {/* Ticker filter */}
+            <div className="relative w-36">
+              <Tag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-color)]/40" />
+              <input
+                id="news-ticker-filter"
+                type="text"
+                placeholder="Ticker…"
+                value={tickerFilter}
+                onChange={(e) => setTickerFilter(e.target.value)}
+                maxLength={10}
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-color)] text-sm font-mono uppercase focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+              />
+            </div>
+
+            {/* Sentiment filter */}
+            <div className="flex gap-1 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl p-1">
+              {SENTIMENT_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  id={`news-sentiment-${s.toLowerCase()}`}
+                  onClick={() => { setSentiment(s); setPage(0); }}
+                  className={[
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    sentiment === s
+                      ? s === "BULLISH" ? "bg-emerald-500 text-white"
+                        : s === "BEARISH" ? "bg-rose-500 text-white"
+                        : "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-white/5",
+                  ].join(" ")}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh */}
+            <button
+              id="news-refresh"
+              onClick={fetchNews}
+              disabled={loading}
+              className="p-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-[var(--color-primary)] transition-colors disabled:opacity-50"
+              title="Refresh"
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === "news" ? (
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-[var(--border-color)]">
-            {newsData.map((item) => (
-              <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full border-4 border-[var(--bg-color)] bg-[var(--color-primary)] text-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
-                </div>
-                
-                <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] glass-card p-5 group-hover:-translate-y-1 transition-transform cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock size={14} className="text-[var(--text-color)]/50" />
-                    <time className="text-sm font-medium text-[var(--color-primary)]">{item.time}</time>
-                    <span className="text-xs bg-[var(--border-color)]/30 px-2 py-0.5 rounded-full ml-auto">{item.tag}</span>
-                  </div>
-                  <h3 className="font-semibold text-lg leading-snug mb-2">{item.title}</h3>
-                  <div className="text-sm text-[var(--text-color)]/50">{item.source}</div>
-                </div>
-              </div>
-            ))}
+      {/* ── Content ── */}
+      <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-6">
+        {error ? (
+          <div className="glass-card p-8 text-center">
+            <p className="text-rose-400 font-medium">{error}</p>
+            <button
+              onClick={fetchNews}
+              className="mt-4 px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:opacity-90 transition-opacity"
+            >
+              Retry
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <Newspaper size={40} className="mx-auto mb-4 text-[var(--text-color)]/20" />
+            <p className="text-lg font-semibold mb-1">No articles found</p>
+            <p className="text-sm text-[var(--text-color)]/50">
+              Try adjusting your filters, or trigger ingestion via
+              <code className="ml-1 px-1.5 py-0.5 rounded bg-white/5 font-mono text-xs">
+                POST /news/fetch
+              </code>
+            </p>
           </div>
         ) : (
-          <div className="glass-card overflow-x-auto w-full">
-            <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="bg-[var(--border-color)]/20 text-xs uppercase text-[var(--text-color)]/70 border-b border-[var(--border-color)]">
-                <tr>
-                  <th className="px-6 py-4 rounded-tl-lg">Time</th>
-                  <th className="px-6 py-4">Country</th>
-                  <th className="px-6 py-4 w-full">Event</th>
-                  <th className="px-6 py-4">Impact</th>
-                  <th className="px-6 py-4">Actual</th>
-                  <th className="px-6 py-4">Forecast</th>
-                  <th className="px-6 py-4 rounded-tr-lg">Previous</th>
-                </tr>
-              </thead>
-              <tbody>
-                {calendarEvents.map((ev) => (
-                  <tr key={ev.id} className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--border-color)]/10 transition-colors">
-                    <td className="px-6 py-4 font-medium">{ev.time}</td>
-                    <td className="px-6 py-4 flex items-center gap-2">
-                      <span className="text-xl">{ev.flag}</span>
-                      <span className="font-semibold">{ev.country}</span>
-                    </td>
-                    <td className="px-6 py-4 text-wrap min-w-[200px] leading-snug">{ev.event}</td>
-                    <td className="px-6 py-4">
-                      {ev.impact === "High" ? (
-                        <span className="bg-red-500/10 text-red-500 font-bold px-2 py-1 rounded">High</span>
-                      ) : ev.impact === "Medium" ? (
-                        <span className="bg-orange-500/10 text-orange-500 font-bold px-2 py-1 rounded">Medium</span>
-                      ) : (
-                        <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 font-bold px-2 py-1 rounded">Low</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 font-semibold">{ev.actual}</td>
-                    <td className="px-6 py-4 text-[var(--text-color)]/70">{ev.forecast}</td>
-                    <td className="px-6 py-4 text-[var(--text-color)]/70">{ev.prev}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {articles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Pagination ── */}
+        {totalPages > 1 && !loading && (
+          <div className="flex items-center justify-between mt-8 pt-4 border-t border-[var(--border-color)]">
+            <span className="text-sm text-[var(--text-color)]/50">
+              Page {page + 1} of {totalPages} &bull; {total} articles
+            </span>
+            <div className="flex gap-2">
+              <button
+                id="news-prev-page"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm disabled:opacity-30 hover:border-[var(--color-primary)] transition-colors"
+              >
+                <ChevronLeft size={15} /> Prev
+              </button>
+              <button
+                id="news-next-page"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm disabled:opacity-30 hover:border-[var(--color-primary)] transition-colors"
+              >
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
+
+// ── Article card ─────────────────────────────────────────────────────────────
+
+function ArticleCard({ article }: { article: NewsArticle }) {
+  const hasBullish = article.sentiment_label === "BULLISH";
+  const hasBearish = article.sentiment_label === "BEARISH";
+
+  const accentColor = hasBullish
+    ? "var(--color-bull, #10b981)"
+    : hasBearish
+    ? "var(--color-bear, #ef4444)"
+    : "var(--color-primary)";
+
+  return (
+    <a
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group glass-card block p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 relative overflow-hidden"
+      style={{ borderLeftWidth: 3, borderLeftColor: accentColor }}
+    >
+      {/* Subtle glow on hover */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        style={{ background: `radial-gradient(ellipse 50% 80% at 0% 50%, ${accentColor}08, transparent)` }}
+      />
+
+      <div className="relative">
+        {/* Top row: meta */}
+        <div className="flex flex-wrap items-center gap-2 mb-2.5">
+          {/* Source */}
+          {article.source && (
+            <span className="text-xs font-semibold text-[var(--color-primary)]">
+              {article.source}
+            </span>
+          )}
+          <span className="text-[var(--text-color)]/20">·</span>
+          {/* Time */}
+          <span className="text-xs text-[var(--text-color)]/50">
+            {relativeTime(article.published_at)}
+          </span>
+
+          {/* Sentiment badge */}
+          <div className="ml-auto">
+            <SentimentBadge label={article.sentiment_label} score={article.sentiment_score} />
+          </div>
+        </div>
+
+        {/* Title */}
+        <h2 className="font-semibold text-base leading-snug mb-2 group-hover:text-[var(--color-primary)] transition-colors line-clamp-2">
+          {article.title}
+          <ExternalLink size={12} className="inline ml-1.5 opacity-0 group-hover:opacity-40 transition-opacity" />
+        </h2>
+
+        {/* Summary */}
+        {article.summary && (
+          <p className="text-sm text-[var(--text-color)]/60 leading-relaxed line-clamp-2 mb-3">
+            {article.summary}
+          </p>
+        )}
+
+        {/* Bottom row: tickers + authors */}
+        <div className="flex flex-wrap items-center gap-2">
+          {article.tickers.slice(0, 6).map((t) => (
+            <span
+              key={t.ticker}
+              className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20"
+            >
+              ${t.ticker}
+            </span>
+          ))}
+          {article.tickers.length > 6 && (
+            <span className="text-xs text-[var(--text-color)]/40">
+              +{article.tickers.length - 6} more
+            </span>
+          )}
+          {article.authors?.length ? (
+            <span className="text-xs text-[var(--text-color)]/40 ml-auto truncate max-w-[200px]">
+              {article.authors.slice(0, 2).join(", ")}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </a>
+  );
+}
 
 export default NewsAndCalendar;

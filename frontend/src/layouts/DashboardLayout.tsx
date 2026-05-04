@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   BarChart2,
   Newspaper,
-  Calendar,
+  BriefcaseBusiness,
   Users,
   UserCircle,
   Menu,
@@ -13,6 +13,7 @@ import {
   Globe
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { AIChatPopup } from "../components/Chat/AIChatPopup";
 
 export const DashboardLayout = () => {
   const { t, i18n } = useTranslation();
@@ -35,7 +36,7 @@ export const DashboardLayout = () => {
   const navLinks = [
     { to: "/dashboard", icon: <BarChart2 size={20} />, label: t("navigation.dashboard") },
     { to: "/news", icon: <Newspaper size={20} />, label: t("navigation.news") },
-    { to: "/calendar", icon: <Calendar size={20} />, label: t("navigation.calendar") },
+    { to: "/portfolio", icon: <BriefcaseBusiness size={20} />, label: t("navigation.portfolio", "Portfolio") },
     { to: "/community", icon: <Users size={20} />, label: t("navigation.community") },
     { to: "/profile", icon: <UserCircle size={20} />, label: t("auth.profile") },
   ];
@@ -109,6 +110,9 @@ export const DashboardLayout = () => {
       <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative">
         <Outlet />
       </main>
+
+      {/* ── Floating AI Chat (available on every page) ── */}
+      <AIChatPopup />
 
     </div>
   );
