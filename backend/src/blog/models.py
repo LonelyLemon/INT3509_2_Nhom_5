@@ -1,12 +1,10 @@
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Column, String, Text, ForeignKey, Boolean, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from src.auth.models import User
-
-Base = declarative_base()
+from src.core.base_model import Base
 
 class Post(Base):
     __tablename__ = "posts"
