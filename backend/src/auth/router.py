@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi.security import OAuth2PasswordRequestForm
@@ -6,25 +7,29 @@ from loguru import logger
 from sqlalchemy import select
 
 from fastapi import (APIRouter, BackgroundTasks,
-                     Depends)
+                     Depends, HTTPException, Request)
 from fastapi_mail import MessageSchema, MessageType
 
-from src.auth.schemas import (UserCreate, UserResponse, UserUpdate, 
+from src.auth.schemas import (UserCreate, UserResponse, UserUpdate,
                               UserPublicProfile,
                               ForgetPasswordRequest,
-                              ResendVerificationRequest)
+                              ResendVerificationRequest,
+                              ResetPasswordRequest,
+                              RefreshRequest)
 from src.auth.models import User
 from src.auth.exceptions import (UserEmailExist, UserNotFound, UserNotVerified,
                                  InvalidToken, InvalidPassword,
-                                 InsufficientPermissions, UserBanned)
+                                 UserBanned)
 from src.auth.security import hash_password, verify_pw, generate_reset_otp
 from src.auth.utils import create_access_token, create_refresh_token, create_verify_token, decode_token
 from src.auth.email_service import email_service_basic
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import get_current_user, get_admin_user
 
 from src.core.database import SessionDep
+from src.core.redis import get_redis
 from src.core.config import settings
 
+OTP_TTL_SECONDS = 900  # 15 minutes
 
 auth_route = APIRouter(
     prefix="/auth",
@@ -35,7 +40,7 @@ auth_route = APIRouter(
 #      REGISTER
 #----------------------
 @auth_route.post('/register', response_model=UserResponse)
-async def register(user: UserCreate, 
+async def register(user: UserCreate,
                    db: SessionDep,
                    background_tasks: BackgroundTasks):
     email_norm = user.email.strip().lower()
@@ -43,14 +48,14 @@ async def register(user: UserCreate,
     existed_user = result.scalar_one_or_none()
     if existed_user:
         raise UserEmailExist()
-    
+
     hashed_pw = hash_password(user.password)
 
     new_user = User(
-        username = user.username,
-        email = email_norm,
-        password_hash = hashed_pw,
-        is_verified = False
+        username=user.username,
+        email=email_norm,
+        password_hash=hashed_pw,
+        is_verified=False
     )
 
     db.add(new_user)
@@ -77,7 +82,7 @@ async def register(user: UserCreate,
         body=html_content,
         subtype=MessageType.html,
     )
-    
+
     background_tasks.add_task(email_service_basic.send_mail, message)
 
     return new_user
@@ -87,44 +92,34 @@ async def register(user: UserCreate,
 #     VERIFY EMAIL
 #----------------------
 @auth_route.get('/verify-email')
-async def verify_email(token: str,
-                       db: SessionDep):
-    try:
-        payload = decode_token(token)
-        if payload.get("type") != "verification":
-            raise InvalidToken()
-
-        email = payload.get("sub")
-        if not email:
-            raise UserNotFound()
-        
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalars().one_or_none()
-
-        if not user:
-            raise UserNotFound()
-        if user.is_verified:
-            return {
-                "message": "This email has already been verified"
-            }
-        
-        user.is_verified = True
-        db.add(user)
-        await db.commit()
-
-        return {
-            "message": "Email Verified Successfully"
-        }
-    
-    except Exception as e:
-        logger.error(f"Email Verification error: {e}")
+async def verify_email(token: str, db: SessionDep):
+    payload = decode_token(token)
+    if payload.get("type") != "verification":
         raise InvalidToken()
+
+    email = payload.get("sub")
+    if not email:
+        raise InvalidToken()
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().one_or_none()
+
+    if not user:
+        raise UserNotFound()
+    if user.is_verified:
+        return {"message": "This email has already been verified"}
+
+    user.is_verified = True
+    await db.commit()
+
+    return {"message": "Email Verified Successfully"}
+
 
 #----------------------
 #  RESEND VERIFICATION
 #----------------------
 @auth_route.post('/resend-verification')
-async def resend_verification(payload: ResendVerificationRequest, 
+async def resend_verification(payload: ResendVerificationRequest,
                               db: SessionDep,
                               background_tasks: BackgroundTasks):
     email_norm = payload.email.strip().lower()
@@ -158,16 +153,17 @@ async def resend_verification(payload: ResendVerificationRequest,
         body=html_content,
         subtype=MessageType.html,
     )
-    
+
     background_tasks.add_task(email_service_basic.send_mail, message)
 
     return {"message": "Verification Email have been sent. Check your mail box."}
+
 
 #----------------------
 #       SIGN IN
 #----------------------
 @auth_route.post('/login')
-async def login(db: SessionDep, 
+async def login(db: SessionDep,
                 login_request: OAuth2PasswordRequestForm = Depends()):
     email = login_request.username.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
@@ -179,7 +175,9 @@ async def login(db: SessionDep,
         raise InvalidPassword()
     if not user.is_verified:
         raise UserNotVerified()
-    
+    if user.is_banned:
+        raise UserBanned()
+
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
 
@@ -188,6 +186,50 @@ async def login(db: SessionDep,
         "refresh_token": refresh_token
     }
 
+
+#----------------------
+#     REFRESH TOKEN
+#----------------------
+@auth_route.post('/refresh')
+async def refresh_token(payload: RefreshRequest, db: SessionDep):
+    token_payload = decode_token(payload.refresh_token)
+    if not token_payload or token_payload.get("type") != "refresh":
+        raise InvalidToken()
+
+    email = token_payload.get("sub")
+    if not email:
+        raise InvalidToken()
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise UserNotFound()
+    if user.is_banned:
+        raise UserBanned()
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token}
+
+
+#----------------------
+#        LOGOUT
+#----------------------
+@auth_route.post('/logout')
+async def logout(request: Request, current_user: User = Depends(get_current_user)):
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip()
+    if token:
+        payload = decode_token(token)
+        exp = payload.get("exp")
+        if exp:
+            remaining_ttl = int(exp - datetime.now(timezone.utc).timestamp())
+            if remaining_ttl > 0:
+                redis_client = get_redis()
+                if redis_client:
+                    await redis_client.setex(f"token_blacklist:{token}", remaining_ttl, "1")
+    return {"message": "Logged out successfully"}
+
+
 #----------------------
 #    GET USER INFO
 #----------------------
@@ -195,28 +237,27 @@ async def login(db: SessionDep,
 async def get_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
+
 #----------------------
 #     UPDATE USER
 #----------------------
 @auth_route.patch('/me')
 async def update_user_info(payload: UserUpdate,
                            db: SessionDep,
-                           current_user: User = Depends(get_current_user)
-                           ):
-    result = await db.execute(select(User).where(User.email == current_user.email))
-    user = result.scalars().one_or_none()
+                           current_user: User = Depends(get_current_user)):
     update_data = payload.model_dump(exclude_unset=True)
 
     if "password" in update_data:
         update_data["password_hash"] = hash_password(update_data.pop("password"))
-    
+
     for key, value in update_data.items():
-        setattr(user, key, value)
+        setattr(current_user, key, value)
 
     await db.commit()
-    await db.refresh(user)
+    await db.refresh(current_user)
 
-    return user
+    return current_user
+
 
 #----------------------
 #   FORGET PASSWORD
@@ -225,38 +266,69 @@ async def update_user_info(payload: UserUpdate,
 async def forget_password(db: SessionDep,
                           payload: ForgetPasswordRequest,
                           background_tasks: BackgroundTasks):
-    result = await db.execute(select(User).where(User.email == payload.email))
+    email_norm = payload.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email_norm))
     user = result.scalar_one_or_none()
 
+    # Always return the same response to prevent email enumeration
     if not user:
-        raise UserNotFound()
-    
-    reset_token = generate_reset_otp()
-    reset_link = f"{settings.FRONTEND_URL}/forget-password?token={reset_token}"
+        return {"message": "If this email is registered, you will receive a reset code shortly."}
 
-    logger.info(f"--- DEV MODE RESET PASSWORD LINK ---")
-    logger.info(f"Link: {reset_link}")
-    logger.info(f"------------------------------------")
+    otp = generate_reset_otp()
+
+    redis_client = get_redis()
+    if redis_client:
+        await redis_client.setex(f"reset_otp:{email_norm}", OTP_TTL_SECONDS, otp)
+
+    logger.info(f"--- DEV MODE RESET OTP ---")
+    logger.info(f"Email: {email_norm} | OTP: {otp}")
+    logger.info(f"--------------------------")
 
     html_content = f"""
-    <h1>Welcome {user.username} to MarketMind!</h1>
-    <p>Click on the link below to reset your password:</p>
-    <a href="{reset_link}">Reset Password</a>
-    <p>This link will be expired in 24 hours.</p>
+    <h1>Hello {user.username},</h1>
+    <p>Your password reset OTP code is:</p>
+    <h2 style="letter-spacing: 4px;">{otp}</h2>
+    <p>This code will expire in 15 minutes. Do not share it with anyone.</p>
     """
 
     message = MessageSchema(
-        subject="MarketMind - Password Reset",
+        subject="MarketMind - Password Reset OTP",
         recipients=[user.email],
         body=html_content,
         subtype=MessageType.html,
     )
-    
+
     background_tasks.add_task(email_service_basic.send_mail, message)
 
-    return {
-        "message": "Check your email for password reset link"
-    }
+    return {"message": "If this email is registered, you will receive a reset code shortly."}
+
+
+#----------------------
+#    RESET PASSWORD
+#----------------------
+@auth_route.post('/reset-password')
+async def reset_password(payload: ResetPasswordRequest, db: SessionDep):
+    email_norm = payload.email.strip().lower()
+
+    redis_client = get_redis()
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable.")
+
+    stored_otp = await redis_client.get(f"reset_otp:{email_norm}")
+    if not stored_otp or stored_otp != payload.otp:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP.")
+
+    result = await db.execute(select(User).where(User.email == email_norm))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise UserNotFound()
+
+    user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+
+    await redis_client.delete(f"reset_otp:{email_norm}")
+
+    return {"message": "Password reset successfully."}
 
 
 #----------------------
@@ -269,7 +341,7 @@ async def get_public_profile(user_id: UUID, db: SessionDep):
 
     if not user:
         raise UserNotFound()
-    
+
     return user
 
 
@@ -279,9 +351,9 @@ async def get_public_profile(user_id: UUID, db: SessionDep):
 @auth_route.patch('/users/{user_id}/ban')
 async def ban_user(user_id: UUID,
                    db: SessionDep,
-                   current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise InsufficientPermissions()
+                   current_user: User = Depends(get_admin_user)):
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Admins cannot ban themselves.")
 
     result = await db.execute(select(User).where(User.id == user_id))
     target_user = result.scalar_one_or_none()

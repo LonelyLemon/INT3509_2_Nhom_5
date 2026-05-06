@@ -44,7 +44,13 @@ export const Login = () => {
       await checkAuth();
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Invalid credentials");
+      const status = err.response?.status;
+      const detail: string = err.response?.data?.detail || "";
+      if (status === 403 && detail.toLowerCase().includes("banned")) {
+        setError("Your account has been banned. Please contact support.");
+      } else {
+        setError(detail || "Invalid credentials.");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,7 +64,7 @@ export const Login = () => {
           <p className="text-[var(--text-color)]/70">{t("auth.login")} to your account</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} noValidate className="space-y-6">
           {error && <div className="p-3 text-red-500 bg-red-500/10 rounded border border-red-500/20 text-sm">{error}</div>}
           <div>
             <label className="block text-sm font-medium mb-2">Email</label>

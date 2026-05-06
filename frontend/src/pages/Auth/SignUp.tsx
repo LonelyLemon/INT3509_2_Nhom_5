@@ -3,6 +3,15 @@ import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 
+const PASSWORD_HINT = "At least 8 characters, 1 uppercase letter, and 1 digit.";
+
+function validatePassword(pw: string): string | null {
+  if (pw.length < 8) return "Password must be at least 8 characters long.";
+  if (!/[A-Z]/.test(pw)) return "Password must contain at least one uppercase letter.";
+  if (!/\d/.test(pw)) return "Password must contain at least one digit.";
+  return null;
+}
+
 export const SignUp = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -26,10 +35,8 @@ export const SignUp = () => {
       setError("Please enter a valid email address.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
-      return;
-    }
+    const pwError = validatePassword(password);
+    if (pwError) { setError(pwError); return; }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -37,11 +44,7 @@ export const SignUp = () => {
 
     setLoading(true);
     try {
-      await api.post("/auth/register", {
-        username: fullName,
-        email,
-        password
-      });
+      await api.post("/auth/register", { username: fullName, email, password });
       navigate("/check-email", { state: { email } });
     } catch (err: any) {
       setError(err.response?.data?.detail || "Registration failed. Please try again.");
@@ -58,32 +61,68 @@ export const SignUp = () => {
           <p className="text-[var(--text-color)]/70">Create a new account</p>
         </div>
 
-        <form onSubmit={handleSignUp} className="space-y-6">
-          {error && <div className="p-3 text-red-500 bg-red-500/10 rounded border border-red-500/20 text-sm">{error}</div>}
+        <form onSubmit={handleSignUp} noValidate className="space-y-6">
+          {error && (
+            <div className="p-3 text-red-500 bg-red-500/10 rounded border border-red-500/20 text-sm">{error}</div>
+          )}
           <div>
             <label className="block text-sm font-medium mb-2">Full Name</label>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="input-field" placeholder="John Doe" />
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="input-field"
+              placeholder="John Doe"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="input-field" placeholder="name@example.com" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="input-field"
+              placeholder="name@example.com"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input-field" placeholder="••••••••" minLength={6} />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="input-field"
+              placeholder="••••••••"
+              minLength={8}
+            />
+            <p className="mt-1 text-xs text-[var(--text-color)]/50">{PASSWORD_HINT}</p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Confirm Password</label>
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="input-field" placeholder="••••••••" minLength={6} />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="input-field"
+              placeholder="••••••••"
+              minLength={8}
+            />
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full flex justify-center items-center">
-            {loading ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full display-inline-block"></span> : t("auth.signup")}
+            {loading
+              ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full display-inline-block"></span>
+              : t("auth.signup")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-[var(--text-color)]/70">
-          Already have an account? <Link to="/login" className="text-[var(--color-cta)] hover:underline">{t("auth.login")}</Link>
+          Already have an account?{" "}
+          <Link to="/login" className="text-[var(--color-cta)] hover:underline">{t("auth.login")}</Link>
         </p>
       </div>
     </div>

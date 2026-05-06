@@ -1,0 +1,6 @@
+{
+  // Use the project's own TypeScript (5.9) instead of VS Code's built-in version.
+  // This ensures TS 5.5+ options (erasableSyntaxOnly, noUncheckedSideEffectImports)
+  // are recognised and do not show as unknown-option warnings.
+  "typescript.tsdk": "frontend/node_modules/typescript/lib"
+}
