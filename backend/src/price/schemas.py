@@ -57,12 +57,13 @@ class AssetUpdate(BaseModel):
 class LatestPriceResponse(BaseModel):
     """Most recent OHLCV candle — for live price display."""
     ticker: str
-    timestamp: datetime
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: float
+    has_data: bool = Field(True, description="False when the ticker exists but has no ingested price data yet")
+    timestamp: datetime | None = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
     change_amount: float | None = Field(None, description="Price change vs previous close")
     change_percentage: float | None = Field(None, description="Percentage change vs previous close")
 

@@ -33,6 +33,7 @@ help:
 	@echo "  Logs & status:"
 	@echo "    make logs         Tail logs from all dev containers"
 	@echo "    make logs-api     Tail logs from the API container only"
+	@echo "    make logs-fe      Tail logs from the frontend container only"
 	@echo "    make ps           Show running containers"
 	@echo ""
 	@echo "  Database:"
@@ -87,6 +88,10 @@ logs:
 .PHONY: logs-api
 logs-api:
 	cd $(BACKEND_DIR) && $(DC_DEV) logs -f api
+
+.PHONY: logs-fe
+logs-fe:
+	cd $(BACKEND_DIR) && $(DC_DEV) logs -f frontend
 
 .PHONY: ps
 ps:

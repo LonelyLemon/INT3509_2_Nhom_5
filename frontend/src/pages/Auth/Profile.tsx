@@ -26,8 +26,8 @@ export const Profile = () => {
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -258,7 +258,7 @@ export const Profile = () => {
                 required 
                 className="input-field max-w-md" 
                 placeholder="••••••••" 
-                minLength={6}
+                minLength={8}
               />
             </div>
             <div>
@@ -270,7 +270,7 @@ export const Profile = () => {
                 required 
                 className="input-field max-w-md" 
                 placeholder="••••••••" 
-                minLength={6}
+                minLength={8}
               />
             </div>
 

@@ -11,10 +11,11 @@ import { VerifyEmail } from "./pages/Auth/VerifyEmail";
 import { ForgotPassword } from "./pages/Auth/ForgotPassword";
 import { ResetPassword } from "./pages/Auth/ResetPassword";
 import { useAuthStore } from "./store/useAuthStore";
+import { FinancialDashboard } from "./pages/Dashboard/FinancialDashboard";
+import { NewsAndCalendar } from "./pages/News/NewsAndCalendar";
+import { PortfolioPage } from "./pages/Portfolio/PortfolioPage";
 
-// Dummy Imports
-const FinancialDashboard = () => <div className="p-8"><h1 className="text-3xl font-bold">Dashboard</h1><p className="mt-4">3-column flexible layout goes here...</p></div>;
-const NewsAndCalendar = () => <div className="p-8"><h1 className="text-3xl font-bold">News & Calendar</h1></div>;
+// Placeholder pages (not yet implemented)
 const Forum = () => <div className="p-8"><h1 className="text-3xl font-bold">Community Forum</h1></div>;
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -38,7 +39,6 @@ function App() {
     checkAuth();
   }, [checkAuth]);
 
-function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -57,11 +57,11 @@ function App() {
         }>
           <Route path="/dashboard" element={<FinancialDashboard />} />
           <Route path="/news" element={<NewsAndCalendar />} />
-          <Route path="/calendar" element={<NewsAndCalendar />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/community" element={<Forum />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -250,27 +250,26 @@ async def get_price_history(
         # Reverse so the chart receives data in ascending order.
         data = [PriceDataResponse.model_validate(r, from_attributes=True) for r in reversed(rows)]
     else:
-        interval = TIMEFRAME_INTERVAL[timeframe]
-        sql = text("""
+        interval = TIMEFRAME_INTERVAL[timeframe]  # trusted whitelist — safe to interpolate
+        sql = text(f"""
             SELECT
-                time_bucket(:interval::interval, timestamp) AS timestamp,
-                first(open, timestamp)                       AS open,
-                max(high)                                    AS high,
-                min(low)                                     AS low,
-                last(close, timestamp)                       AS close,
-                sum(volume)                                  AS volume
+                time_bucket(INTERVAL '{interval}', timestamp) AS timestamp,
+                first(open, timestamp)                        AS open,
+                max(high)                                     AS high,
+                min(low)                                      AS low,
+                last(close, timestamp)                        AS close,
+                sum(volume)                                   AS volume
             FROM price_data
             WHERE
                 asset_id    = :asset_id
                 AND timeframe = '1m'
-                AND (:start IS NULL OR timestamp >= :start)
-                AND (:end   IS NULL OR timestamp <= :end)
-            GROUP BY time_bucket(:interval::interval, timestamp)
+                AND (CAST(:start AS TIMESTAMPTZ) IS NULL OR timestamp >= CAST(:start AS TIMESTAMPTZ))
+                AND (CAST(:end   AS TIMESTAMPTZ) IS NULL OR timestamp <= CAST(:end   AS TIMESTAMPTZ))
+            GROUP BY time_bucket(INTERVAL '{interval}', timestamp)
             ORDER BY timestamp DESC
             LIMIT :limit
         """)
         rows = (await db.execute(sql, {
-            "interval": interval,
             "asset_id": asset.id,
             "start": start,
             "end": end,

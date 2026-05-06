@@ -19,6 +19,9 @@ from src.auth.security import hash_password
 from src.auth.router import auth_route
 from src.news.router import news_route
 from src.price.router import price_route
+from src.portfolio.router import portfolio_route
+from src.watchlist.router import watchlist_route
+from src.ai.router import ai_route
 
 THIS_DIR = Path(__file__).parent
 
@@ -106,3 +109,6 @@ async def health_check():
 app.include_router(news_route)
 app.include_router(auth_route)
 app.include_router(price_route)
+app.include_router(portfolio_route)
+app.include_router(watchlist_route)
+app.include_router(ai_route)

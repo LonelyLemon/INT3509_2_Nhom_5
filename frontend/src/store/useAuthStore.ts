@@ -18,24 +18,25 @@ interface AuthState {
   isLoading: boolean;
   setTokens: (access: string, refresh: string) => void;
   checkAuth: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+
   setTokens: (access, refresh) => {
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);
   },
+
   checkAuth: async () => {
     const token = localStorage.getItem('access_token');
     if (!token) {
       set({ user: null, isAuthenticated: false, isLoading: false });
       return;
     }
-    
     try {
       const res = await api.get('/auth/me');
       set({ user: res.data, isAuthenticated: true, isLoading: false });
@@ -45,9 +46,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    set({ user: null, isAuthenticated: false });
-  }
+
+  logout: async () => {
+    try {
+      // Blacklist the current access token on the server
+      await api.post('/auth/logout');
+    } catch {
+      // Proceed with local logout even if the server call fails
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      set({ user: null, isAuthenticated: false });
+    }
+  },
 }));
