@@ -7,7 +7,7 @@ import { api } from "../../lib/api";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface TickerRef { ticker: string; relevance_score: number | null }
+interface TickerRef { ticker: string }
 
 interface NewsArticle {
   id: string;

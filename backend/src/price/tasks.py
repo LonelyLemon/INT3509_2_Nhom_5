@@ -17,6 +17,8 @@ BATCH_SIZE = 50
 # The on_conflict_do_nothing upsert silently discards already-stored rows,
 # so running every minute with this period is always safe.
 DOWNLOAD_PERIOD = "1d"
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2.0  # seconds, doubles each attempt
 
 
 @celery_app.task(name="src.price.tasks.ingest_1m_price_data")
@@ -59,7 +61,20 @@ async def _process_ticker_batch(
             progress=False,
             threads=False,  # disable yfinance's own thread pool inside ours
         )
-        df = await asyncio.to_thread(download_fn)
+        df = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                df = await asyncio.to_thread(download_fn)
+                break
+            except Exception as fetch_err:
+                if attempt == MAX_RETRIES:
+                    raise
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"yfinance download failed (attempt {attempt}/{MAX_RETRIES}) "
+                    f"for batch {tickers}: {fetch_err}. Retrying in {delay:.0f}s…"
+                )
+                await asyncio.sleep(delay)
 
         if df.empty:
             logger.warning(f"yfinance returned empty DataFrame for batch: {tickers}")

@@ -15,6 +15,8 @@ from src.core.redis import init_redis, close_redis
 from src.core.rate_limiter import RateLimiterMiddleware
 from src.auth.models import User
 from src.auth.security import hash_password
+from src.price.models import Asset
+from src.price.constants import AssetType
 
 from src.auth.router import auth_route
 from src.news.router import news_route
@@ -24,6 +26,50 @@ from src.watchlist.router import watchlist_route
 from src.ai.router import ai_route
 
 THIS_DIR = Path(__file__).parent
+
+_SEED_TICKERS: list[tuple[str, str, AssetType]] = [
+    # (ticker, name, asset_type)
+    # US Stocks
+    ("AAPL",  "Apple Inc.",               AssetType.STOCK),
+    ("MSFT",  "Microsoft Corporation",    AssetType.STOCK),
+    ("GOOGL", "Alphabet Inc.",            AssetType.STOCK),
+    ("AMZN",  "Amazon.com Inc.",          AssetType.STOCK),
+    ("NVDA",  "NVIDIA Corporation",       AssetType.STOCK),
+    ("TSLA",  "Tesla Inc.",               AssetType.STOCK),
+    ("META",  "Meta Platforms Inc.",      AssetType.STOCK),
+    ("NFLX",  "Netflix Inc.",             AssetType.STOCK),
+    ("JPM",   "JPMorgan Chase & Co.",     AssetType.STOCK),
+    ("V",     "Visa Inc.",                AssetType.STOCK),
+    # ETFs
+    ("SPY",   "SPDR S&P 500 ETF",         AssetType.ETF),
+    ("QQQ",   "Invesco QQQ Trust",        AssetType.ETF),
+    ("IWM",   "iShares Russell 2000 ETF", AssetType.ETF),
+    ("GLD",   "SPDR Gold Shares",         AssetType.ETF),
+    ("VNM",   "VanEck Vietnam ETF",       AssetType.ETF),
+    # Crypto
+    ("BTC-USD", "Bitcoin",  AssetType.CRYPTO),
+    ("ETH-USD", "Ethereum", AssetType.CRYPTO),
+    ("BNB-USD", "BNB",      AssetType.CRYPTO),
+]
+
+
+async def seed_tickers():
+    async with SessionLocal() as session:
+        existing = set(
+            (await session.execute(select(Asset.ticker))).scalars().all()
+        )
+        new_assets = [
+            Asset(ticker=ticker, name=name, asset_type=asset_type)
+            for ticker, name, asset_type in _SEED_TICKERS
+            if ticker not in existing
+        ]
+        if new_assets:
+            session.add_all(new_assets)
+            await session.commit()
+            logger.info(f"Seeded {len(new_assets)} tickers: {[a.ticker for a in new_assets]}")
+        else:
+            logger.info("All seed tickers already present, skipping.")
+
 
 async def create_admin_user():
     async with SessionLocal() as session:
@@ -50,6 +96,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application startup")
     await init_redis()
     await create_admin_user()
+    await seed_tickers()
 
     yield
 

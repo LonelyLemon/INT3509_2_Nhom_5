@@ -57,9 +57,6 @@ class Settings(CustomBaseSettings):
     # Massive API Key
     MASSIVE_API_KEY: str
 
-    # Alpha Vantage API Key
-    ALPHA_VANTAGE_API_KEY: str
-
     # Admin Account
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str

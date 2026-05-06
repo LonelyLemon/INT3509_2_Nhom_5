@@ -32,11 +32,13 @@ function fmtCompact(n: number | null | undefined): string {
 }
 
 // ── Ticker Card ──────────────────────────────────────────────────────────────
-const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => void }> = ({
+// React.memo prevents re-render when sibling ticker prices update.
+// The selector `state.latestPrices[symbol]` ensures this card only re-renders
+// when its own price changes, not when any other ticker in the map updates.
+const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => void }> = React.memo(({
   symbol, isActive, onClick,
 }) => {
-  const { latestPrices } = useMarketStore();
-  const q = latestPrices[symbol];
+  const q = useMarketStore((state) => state.latestPrices[symbol]);
   const bullish = (q?.change_percentage ?? 0) >= 0;
 
   return (
@@ -69,7 +71,7 @@ const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => v
       )}
     </button>
   );
-};
+});
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard: React.FC<{ label: string; value: string; sub?: string; positive?: boolean }> = ({
@@ -119,6 +121,16 @@ export const FinancialDashboard: React.FC = () => {
     }, 30_000);
     return () => clearInterval(id);
   }, [tickers, fetchLatestPrice]);
+
+  // Auto-refresh candles every 60s so the chart picks up new 1m bars.
+  // Uses silent mode: existing candles stay visible, no loading spinner.
+  useEffect(() => {
+    if (!activeTicker) return;
+    const id = setInterval(() => {
+      fetchCandles(activeTicker, activeTimeframe, true);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [activeTicker, activeTimeframe, fetchCandles]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

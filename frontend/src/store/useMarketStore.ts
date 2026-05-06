@@ -42,10 +42,13 @@ interface MarketState {
 
   fetchTickers: () => Promise<void>;
   fetchLatestPrice: (ticker: string) => Promise<void>;
-  fetchCandles: (ticker: string, timeframe: string) => Promise<void>;
+  fetchCandles: (ticker: string, timeframe: string, silent?: boolean) => Promise<void>;
   setActiveTicker: (ticker: string) => void;
   setActiveTimeframe: (tf: string) => void;
 }
+
+// Module-level controller — cancelled whenever a newer fetchCandles call arrives.
+let candlesController: AbortController | null = null;
 
 export const useMarketStore = create<MarketState>((set, get) => ({
   tickers: [],
@@ -63,11 +66,9 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       const res = await api.get('/price/tickers', { params: { is_active: true, limit: 50 } });
       const tickers: Ticker[] = res.data;
       set({ tickers, tickersLoading: false });
-      // Set first ticker as active if none selected
       if (!get().activeTicker && tickers.length > 0) {
         set({ activeTicker: tickers[0].ticker });
       }
-      // Fetch latest price for all tickers (up to 10 to avoid overload)
       tickers.slice(0, 10).forEach((t) => get().fetchLatestPrice(t.ticker));
     } catch {
       set({ tickersLoading: false });
@@ -85,15 +86,30 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }
   },
 
-  fetchCandles: async (ticker: string, timeframe: string) => {
+  fetchCandles: async (ticker: string, timeframe: string, silent = false) => {
     if (!ticker) return;
-    set({ candlesLoading: true, candlesError: null });
+
+    // Cancel any in-flight candle request before starting a new one.
+    candlesController?.abort();
+    candlesController = new AbortController();
+    const { signal } = candlesController;
+
+    // Silent mode (background refresh): keep existing candles visible, no spinner.
+    if (!silent) set({ candlesLoading: true, candlesError: null });
+
     try {
       const res = await api.get(`/price/${ticker}`, {
         params: { timeframe, limit: 200 },
+        signal,
       });
       set({ candles: res.data.data ?? [], candlesLoading: false });
     } catch (err: unknown) {
+      // Ignore aborted requests — a newer call is already in flight.
+      if ((err as { name?: string })?.name === 'CanceledError') return;
+
+      // In silent mode keep existing chart intact; only surface errors on explicit loads.
+      if (silent) return;
+
       const status = (err as { response?: { status?: number } })?.response?.status;
       const errorMsg =
         status === 404

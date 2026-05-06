@@ -197,11 +197,7 @@ export const Profile = () => {
               <label className="block text-sm font-medium mb-1 text-[var(--text-color)]/70">Email</label>
               <div className="text-lg">{user?.email || "Email"}</div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--text-color)]/70">Subscription</label>
-              <div className="text-lg text-[var(--color-cta)] font-semibold">Pro Plan</div>
-            </div>
-            {user?.bio && (
+{user?.bio && (
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1 text-[var(--text-color)]/70">Bio</label>
                 <div className="text-md text-[var(--text-color)]/90 whitespace-pre-line">{user.bio}</div>
