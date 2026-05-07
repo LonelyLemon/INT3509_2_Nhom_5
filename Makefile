@@ -33,12 +33,14 @@ help:
 	@echo "  Logs & status:"
 	@echo "    make logs         Tail logs from all dev containers"
 	@echo "    make logs-api     Tail logs from the API container only"
+	@echo "    make logs-fe      Tail logs from the frontend container only"
 	@echo "    make ps           Show running containers"
 	@echo ""
 	@echo "  Database:"
 	@echo "    make migrate      Run Alembic migrations inside the api container"
 	@echo "    make migration m=\"msg\"  Create a new Alembic revision (autogenerate)"
 	@echo "    make db-shell     Open psql inside the db container"
+	@echo "    make db-reset     TRUNCATE all tables (keeps schema, no restart needed)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make shell        Open bash shell inside the api container"
@@ -88,6 +90,10 @@ logs:
 logs-api:
 	cd $(BACKEND_DIR) && $(DC_DEV) logs -f api
 
+.PHONY: logs-fe
+logs-fe:
+	cd $(BACKEND_DIR) && $(DC_DEV) logs -f frontend
+
 .PHONY: ps
 ps:
 	cd $(BACKEND_DIR) && $(DC_DEV) ps
@@ -105,6 +111,14 @@ migration:
 .PHONY: db-shell
 db-shell:
 	cd $(BACKEND_DIR) && $(DC_DEV) exec db psql -U marketmind -d marketminddb
+
+.PHONY: db-reset
+db-reset:
+	@echo "WARNING: This will TRUNCATE all tables (data deleted, schema kept)."
+	@read -p "Continue? [y/N] " ans && [ "$$ans" = "y" ]
+	cd $(BACKEND_DIR) && $(DC_DEV) exec db psql -U marketmind -d marketminddb -c \
+		"TRUNCATE TABLE messages, conversations, holdings, portfolios, watchlist_items, price_data, news_article_tickers, news_articles, assets, users RESTART IDENTITY CASCADE;"
+	@echo "  All tables cleared."
 
 # ---------- utilities ----------------------------------------
 .PHONY: shell

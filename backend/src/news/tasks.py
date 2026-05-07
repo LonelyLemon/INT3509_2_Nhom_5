@@ -5,12 +5,15 @@ from sqlalchemy import select
 
 from src.core.celery import celery_app
 from src.core.database import TaskSessionLocal
+from src.news.constants import asset_type_to_category
 from src.news.get_news import get_tickers_news, parse_yfinance_news_item
 from src.news.models import NewsArticle
 from src.price.models import Asset
 
 # How many news items to request per ticker per run.
 NEWS_PER_TICKER = 10
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2.0  # seconds, doubles each attempt
 
 
 @celery_app.task(name="src.news.tasks.ingest_assets_news")
@@ -26,20 +29,36 @@ def ingest_assets_news():
 
 async def _ingest_assets_news():
     async with TaskSessionLocal() as db:
-        # 1. Resolve active tickers from DB.
-        result = await db.execute(select(Asset.ticker).where(Asset.is_active == True))
-        tickers = result.scalars().all()
-        if not tickers:
+        # 1. Resolve active assets (need asset_type for category derivation).
+        result = await db.execute(select(Asset).where(Asset.is_active == True))
+        assets = result.scalars().all()
+        if not assets:
             logger.info("No active assets — skipping news ingestion.")
             return
 
+        ticker_to_category = {
+            a.ticker: asset_type_to_category(a.asset_type) for a in assets
+        }
+        tickers = list(ticker_to_category.keys())
         logger.info(f"Fetching news for {len(tickers)} active assets…")
 
         # 2. Collect raw items from yfinance (includes cross-ticker dedup by URL).
         #    This is blocking I/O (HTTP), so run it in a thread.
-        raw_pairs: list[tuple[str, dict]] = await asyncio.to_thread(
-            get_tickers_news, list(tickers), NEWS_PER_TICKER
-        )
+        raw_pairs: list[tuple[str, dict]] = []
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                raw_pairs = await asyncio.to_thread(get_tickers_news, tickers, NEWS_PER_TICKER)
+                break
+            except Exception as fetch_err:
+                if attempt == MAX_RETRIES:
+                    logger.error(f"News fetch failed after {MAX_RETRIES} attempts: {fetch_err}")
+                    return
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"News fetch failed (attempt {attempt}/{MAX_RETRIES}): "
+                    f"{fetch_err}. Retrying in {delay:.0f}s…"
+                )
+                await asyncio.sleep(delay)
 
         if not raw_pairs:
             logger.info("No news items returned from yfinance.")
@@ -58,7 +77,8 @@ async def _ingest_assets_news():
             url = _url(item)
             if not url or url in existing_urls:
                 continue
-            article = parse_yfinance_news_item(item, source_ticker)
+            category = ticker_to_category.get(source_ticker)
+            article = parse_yfinance_news_item(item, source_ticker, category=category)
             if article:
                 new_articles.append(article)
                 existing_urls.add(url)  # prevent intra-batch duplicates

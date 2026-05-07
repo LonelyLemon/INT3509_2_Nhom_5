@@ -51,12 +51,11 @@ class Settings(CustomBaseSettings):
     # AI / LLM
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # Massive API Key
     MASSIVE_API_KEY: str
-
-    # Alpha Vantage API Key
-    ALPHA_VANTAGE_API_KEY: str
 
     # Admin Account
     ADMIN_EMAIL: str
