@@ -37,7 +37,7 @@ wait_for_postgres() {
 # ---------- 2. run migrations --------------------------------
 run_migrations() {
     log "Running Alembic migrations..."
-    alembic upgrade head
+    alembic upgrade heads
     log "Migrations complete."
 }
 
