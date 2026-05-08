@@ -184,17 +184,6 @@ async def get_news_list(
     return NewsArticleListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
-# ── Single article ───────────────────────────────────────────────────────────
-
-@news_route.get("/{news_id}", response_model=NewsArticleResponse)
-async def get_specific_news(db: SessionDep, news_id: UUID):
-    result = await db.execute(select(NewsArticle).where(NewsArticle.id == news_id))
-    article = result.scalar_one_or_none()
-    if not article:
-        raise ArticleNotFound()
-    return article
-
-
 # ── Admin: create ────────────────────────────────────────────────────────────
 
 @news_route.post("", response_model=NewsArticleResponse, status_code=201)
@@ -212,7 +201,7 @@ async def create_news_article(
         raise ArticleAlreadyExists()
 
     ticker_rows = [
-        NewsArticleTicker(ticker=t.upper(), relevance_score=None)
+        NewsArticleTicker(ticker=t.upper())
         for t in payload.tickers
     ]
 
@@ -267,7 +256,6 @@ async def update_news_article(
             db.add(NewsArticleTicker(
                 article_id=article.id,
                 ticker=ticker_symbol.upper(),
-                relevance_score=None,
             ))
 
     await db.commit()

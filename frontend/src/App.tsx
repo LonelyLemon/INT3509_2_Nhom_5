@@ -14,6 +14,7 @@ import { useAuthStore } from "./store/useAuthStore";
 import { FinancialDashboard } from "./pages/Dashboard/FinancialDashboard";
 import { NewsAndCalendar } from "./pages/News/NewsAndCalendar";
 import { PortfolioPage } from "./pages/Portfolio/PortfolioPage";
+import { AdminPage } from "./pages/Admin/AdminPage";
 
 // Placeholder pages (not yet implemented)
 const Forum = () => <div className="p-8"><h1 className="text-3xl font-bold">Community Forum</h1></div>;
@@ -30,6 +31,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+};
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isAuthenticated, isLoading } = useAuthStore();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-color)]">
+        <span className="animate-spin h-10 w-10 border-4 border-[var(--color-primary)] border-t-transparent rounded-full display-inline-block"></span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== "admin") return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
 };
 
 function App() {
@@ -60,6 +77,11 @@ function App() {
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/community" element={<Forum />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          } />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

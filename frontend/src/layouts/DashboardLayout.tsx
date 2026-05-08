@@ -10,13 +10,17 @@ import {
   Menu,
   Moon,
   Sun,
-  Globe
+  Globe,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { AIChatPopup } from "../components/Chat/AIChatPopup";
+import { useAuthStore } from "../store/useAuthStore";
 
 export const DashboardLayout = () => {
   const { t, i18n } = useTranslation();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === "admin";
   const [isDark, setIsDark] = useState(true); // Default to Dark Mode (OLED)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -83,6 +87,24 @@ export const DashboardLayout = () => {
               {isSidebarOpen && <span className="ml-3 truncate">{link.label}</span>}
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => cn(
+                "flex items-center py-3 px-3 rounded-lg transition-all duration-200 cursor-pointer group",
+                !isSidebarOpen && "justify-center",
+                isActive
+                  ? "bg-amber-500/10 text-amber-400 font-medium"
+                  : "hover:bg-[var(--border-color)]/30 text-amber-500/70 hover:text-amber-400"
+              )}
+            >
+              <div className={cn("flex items-center justify-center", isSidebarOpen ? "w-6" : "w-auto")}>
+                <ShieldAlert size={20} />
+              </div>
+              {isSidebarOpen && <span className="ml-3 truncate">Admin</span>}
+            </NavLink>
+          )}
         </nav>
 
         {/* User & Settings */}

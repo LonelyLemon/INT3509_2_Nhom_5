@@ -59,10 +59,12 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
 
   // Convert candles → Lightweight Charts CandlestickData (sorted asc)
   const lwData = useMemo<CandlestickData[]>(() => {
+    const UTC7_OFFSET = 7 * 3600; // seconds
     return [...candles]
+      .filter((c) => c.high !== c.low || c.volume > 0) // skip flat bars (yfinance live tick artifacts)
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
       .map((c) => ({
-        time: (new Date(c.timestamp).getTime() / 1000) as UTCTimestamp,
+        time: ((new Date(c.timestamp).getTime() / 1000) + UTC7_OFFSET) as UTCTimestamp,
         open: c.open,
         high: c.high,
         low: c.low,

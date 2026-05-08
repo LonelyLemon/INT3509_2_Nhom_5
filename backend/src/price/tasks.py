@@ -18,6 +18,9 @@ BATCH_SIZE = 50
 # so running every minute with this period is always safe.
 DOWNLOAD_PERIOD = "1d"
 MAX_RETRIES = 3
+# asyncpg hard-limits query parameters to 32767.
+# PriceData has 12 columns → max 2730 rows per INSERT statement.
+INSERT_CHUNK_SIZE = 2000
 RETRY_BASE_DELAY = 2.0  # seconds, doubles each attempt
 
 
@@ -106,11 +109,13 @@ async def _process_ticker_batch(
         if not records:
             return
 
-        stmt = insert(PriceData).values(records)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["asset_id", "timestamp", "timeframe"]
-        )
-        await db.execute(stmt)
+        for i in range(0, len(records), INSERT_CHUNK_SIZE):
+            chunk = records[i : i + INSERT_CHUNK_SIZE]
+            stmt = insert(PriceData).values(chunk)
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=["asset_id", "timestamp", "timeframe"]
+            )
+            await db.execute(stmt)
         await db.commit()
         logger.info(
             f"Ingested {len(records)} price records for {len(tickers)} tickers "
