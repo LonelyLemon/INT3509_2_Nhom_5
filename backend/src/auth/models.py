@@ -1,5 +1,5 @@
 from sqlalchemy import String, Boolean, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base_model import Base
 
@@ -16,3 +16,6 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    posts: Mapped[list["Post"]] = relationship("Post", back_populates="author")
+    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="author")
