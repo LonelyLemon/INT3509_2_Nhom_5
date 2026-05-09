@@ -15,7 +15,13 @@ from src.auth.models import User
 from src.core.database import SessionDep
 from src.core.redis import get_redis
 from src.core.config import settings
-from src.ai.agent import get_agent, AgentDeps
+from src.ai.agent import (
+    AgentDeps,
+    get_intent_agent,
+    get_guide_agent,
+    get_data_agent,
+    get_analysis_agent,
+)
 from src.ai.models import Conversation, Message
 from src.ai.schemas import (
     ChatRequest,
@@ -31,6 +37,13 @@ ai_route = APIRouter(prefix="/ai", tags=["AI"])
 # Per-user AI rate limit: 20 queries per 60 seconds
 _AI_RATE_LIMIT = 20
 _AI_RATE_WINDOW = 60
+
+_AGENT_LABELS = {
+    "app_guide": "Trợ lý Hướng dẫn",
+    "market_data": "Trợ lý Dữ liệu thị trường",
+    "market_analysis": "Trợ lý Phân tích thị trường",
+    "general": "Trợ lý Hướng dẫn",
+}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,6 +87,16 @@ def _build_message_history(messages: list[Message]) -> list:
     return history
 
 
+def _select_agent(intent: str):
+    """Map intent to the appropriate specialized agent."""
+    if intent == "market_analysis":
+        return get_analysis_agent()
+    if intent == "market_data":
+        return get_data_agent()
+    # app_guide and general both go to guide agent
+    return get_guide_agent()
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -90,9 +113,10 @@ async def chat(
     Stream an AI response via SSE (Server-Sent Events).
 
     SSE events emitted:
+    - `routing`  — intent classification result, which agent will handle the request
     - `token`    — incremental text delta
     - `tool`     — tool being called (name)
-    - `done`     — stream complete, includes conversation_id
+    - `done`     — stream complete, includes conversation_id and agent used
     - `error`    — error message
     """
     await _check_ai_rate_limit(current_user.id)
@@ -117,11 +141,26 @@ async def chat(
     async def event_stream():
         full_response = ""
         tool_names: list[str] = []
+        routed_intent = "general"
 
         try:
             deps = AgentDeps(db=db, user_id=current_user.id)
 
-            async with get_agent().run_stream(
+            # ── Phase 1: Classify intent (no streaming, fast ~1s) ────────────
+            intent_result = await get_intent_agent().run(payload.message)
+            intent = intent_result.data
+            routed_intent = intent.intent
+
+            yield _sse("routing", {
+                "intent": intent.intent,
+                "agent_name": _AGENT_LABELS.get(intent.intent, "Trợ lý AI"),
+                "tickers": intent.tickers,
+            })
+
+            # ── Phase 2: Route to specialized agent (streaming) ──────────────
+            target_agent = _select_agent(intent.intent)
+
+            async with target_agent.run_stream(
                 payload.message,
                 deps=deps,
                 message_history=message_history,
@@ -155,6 +194,7 @@ async def chat(
             yield _sse("done", {
                 "conversation_id": str(conversation.id),
                 "tools_used": tool_names,
+                "agent": routed_intent,
             })
 
         except AIRateLimitExceeded as e:

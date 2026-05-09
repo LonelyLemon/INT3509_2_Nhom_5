@@ -16,6 +16,12 @@ interface Msg {
   streaming?: boolean;
   toolsUsed?: string[];
   error?: boolean;
+  agentName?: string;
+}
+
+interface RoutingInfo {
+  agentName: string;
+  tickers: string[];
 }
 
 interface ConvSummary {
@@ -68,6 +74,8 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [routingInfo, setRoutingInfo] = useState<RoutingInfo | null>(null);
+  const routingInfoRef = useRef<RoutingInfo | null>(null);
 
   // History panel state
   const [showHistory, setShowHistory] = useState(false);
@@ -195,6 +203,8 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
     ]);
     setIsStreaming(true);
     setActiveTools([]);
+    setRoutingInfo(null);
+    routingInfoRef.current = null;
     abortRef.current = new AbortController();
 
     try {
@@ -226,7 +236,11 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
           if (!rawData) continue;
           try {
             const data = JSON.parse(rawData);
-            if (event === "token") {
+            if (event === "routing") {
+              const info = { agentName: data.agent_name, tickers: data.tickers ?? [] };
+              routingInfoRef.current = info;
+              setRoutingInfo(info);
+            } else if (event === "token") {
               setMessages(prev => {
                 const u = [...prev];
                 const last = u[u.length - 1];
@@ -241,10 +255,19 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
               setMessages(prev => {
                 const u = [...prev];
                 const last = u[u.length - 1];
-                if (last?.streaming) u[u.length - 1] = { ...last, streaming: false, toolsUsed: used };
+                if (last?.streaming) {
+                  u[u.length - 1] = {
+                    ...last,
+                    streaming: false,
+                    toolsUsed: used,
+                    agentName: routingInfoRef.current?.agentName,
+                  };
+                }
                 return u;
               });
               setActiveTools([]);
+              setRoutingInfo(null);
+              routingInfoRef.current = null;
             } else if (event === "error") {
               setMessages(prev => {
                 const u = [...prev];
@@ -322,6 +345,14 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
             {msg.streaming && (
               <span className="inline-block w-1.5 h-4 bg-[var(--color-primary)] rounded-sm animate-pulse ml-1 mb-2" />
             )}
+            {/* Agent name badge */}
+            {!msg.streaming && msg.role === "ai" && !msg.error && msg.agentName && (
+              <div className="flex items-center gap-1 ml-1 mb-1">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]/70 font-medium">
+                  {msg.agentName}
+                </span>
+              </div>
+            )}
             {/* Tools used badges */}
             {/* {!msg.streaming && msg.toolsUsed && msg.toolsUsed.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-1 ml-1">
@@ -335,6 +366,14 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
           </div>
         ))}
 
+        {/* Routing indicator — shown while intent is being classified */}
+        {isStreaming && routingInfo && messages[messages.length - 1]?.content === "" && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-primary)]/70 italic my-1">
+            <Bot size={11} className="animate-pulse" />
+            {routingInfo.agentName}…
+          </div>
+        )}
+
         {/* Active tool indicator */}
         {activeTools.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-[var(--text-color)]/50 italic my-1">
@@ -343,8 +382,8 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
           </div>
         )}
 
-        {/* Thinking indicator */}
-        {isStreaming && messages[messages.length - 1]?.content === "" && (
+        {/* Thinking indicator — before routing info arrives */}
+        {isStreaming && !routingInfo && messages[messages.length - 1]?.content === "" && (
           <div className="flex items-center gap-2 text-xs text-[var(--text-color)]/50 italic">
             <Bot size={13} className="animate-pulse text-[var(--color-primary)]" />
             {t("chat.thinking", "FinAI is analyzing…")}
