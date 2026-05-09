@@ -131,10 +131,8 @@ async def add_to_watchlist(
             position=next_pos,
         )
         .on_conflict_do_nothing(constraint="uq_watchlist_user_asset")
-        .returning(WatchlistItem.id)
     )
-    insert_result = await db.execute(stmt)
-    new_id = insert_result.scalar_one_or_none()
+    await db.execute(stmt)
     await db.commit()
 
     # Fetch the row (whether newly inserted or pre-existing)
@@ -181,14 +179,6 @@ async def reorder_watchlist(
 ):
     """Batch-update position for each asset_id. Unknown asset_ids are silently ignored."""
     for entry in payload.items:
-        await db.execute(
-            select(WatchlistItem)
-            .where(
-                WatchlistItem.user_id == current_user.id,
-                WatchlistItem.asset_id == entry.asset_id,
-            )
-            .with_for_update()
-        )
         await db.execute(
             WatchlistItem.__table__.update()
             .where(

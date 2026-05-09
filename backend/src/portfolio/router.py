@@ -1,9 +1,9 @@
-import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select, update, func
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import noload
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
@@ -34,7 +34,9 @@ portfolio_route = APIRouter(
 
 async def _get_portfolio_or_404(db: SessionDep, portfolio_id: UUID, user_id: UUID) -> Portfolio:
     result = await db.execute(
-        select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == user_id)
+        select(Portfolio)
+        .options(noload(Portfolio.holdings))
+        .where(Portfolio.id == portfolio_id, Portfolio.user_id == user_id)
     )
     portfolio = result.scalar_one_or_none()
     if not portfolio:
@@ -63,33 +65,6 @@ async def _latest_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, fl
     return {row.asset_id: row.close for row in rows}
 
 
-async def _latest_two_prices(db: SessionDep, asset_ids: list[UUID]) -> dict[UUID, list[float]]:
-    """Return {asset_id: [latest_close, prev_close]} across all timeframes."""
-    if not asset_ids:
-        return {}
-
-    subq = (
-        select(
-            PriceData.asset_id,
-            PriceData.close,
-            func.row_number().over(
-                partition_by=PriceData.asset_id,
-                order_by=PriceData.timestamp.desc(),
-            ).label("rn"),
-        )
-        .where(PriceData.asset_id.in_(asset_ids))
-        .subquery()
-    )
-    rows = await db.execute(
-        select(subq.c.asset_id, subq.c.close, subq.c.rn).where(subq.c.rn <= 2)
-    )
-
-    result: dict[UUID, list[float]] = {}
-    for row in rows:
-        result.setdefault(row.asset_id, [None, None])
-        result[row.asset_id][row.rn - 1] = row.close
-    return result
-
 
 def _build_holding_response(
     holding: Holding,
@@ -97,11 +72,7 @@ def _build_holding_response(
     total_portfolio_value: float | None,
 ) -> HoldingResponse:
     current_price = prices.get(holding.asset_id)
-    cost_basis = holding.quantity * holding.avg_buy_price
-
     current_value = holding.quantity * current_price if current_price is not None else None
-    pl_amount = (current_value - cost_basis) if current_value is not None else None
-    pl_percentage = (pl_amount / cost_basis * 100) if (pl_amount is not None and cost_basis > 0) else None
     allocation = (
         (current_value / total_portfolio_value * 100)
         if (current_value is not None and total_portfolio_value and total_portfolio_value > 0)
@@ -112,15 +83,11 @@ def _build_holding_response(
         id=holding.id,
         asset=AssetBrief.model_validate(holding.asset),
         quantity=holding.quantity,
-        avg_buy_price=holding.avg_buy_price,
         notes=holding.notes,
         created_at=holding.created_at,
         updated_at=holding.updated_at,
         current_price=current_price,
         current_value=current_value,
-        cost_basis=cost_basis,
-        pl_amount=pl_amount,
-        pl_percentage=pl_percentage,
         allocation=allocation,
     )
 
@@ -133,7 +100,9 @@ async def list_portfolios(
     current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == current_user.id)
+        select(Portfolio)
+        .options(noload(Portfolio.holdings))
+        .where(Portfolio.user_id == current_user.id)
     )
     return result.scalars().all()
 
@@ -173,7 +142,14 @@ async def get_portfolio(
     db: SessionDep,
     current_user: User = Depends(get_current_user),
 ):
-    portfolio = await _get_portfolio_or_404(db, portfolio_id, current_user.id)
+    # Load portfolio with holdings via selectin (model default) for the detail view.
+    # _get_portfolio_or_404 suppresses holdings loading, so we use a direct query here.
+    result = await db.execute(
+        select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id)
+    )
+    portfolio = result.scalar_one_or_none()
+    if not portfolio:
+        raise PortfolioNotFound()
 
     asset_ids = [h.asset_id for h in portfolio.holdings]
     prices = await _latest_prices(db, asset_ids)
@@ -190,10 +166,6 @@ async def get_portfolio(
         for h in portfolio.holdings
     ]
 
-    total_cost = sum(h.quantity * h.avg_buy_price for h in portfolio.holdings)
-    total_pl_amount = total_value - total_cost
-    total_pl_pct = (total_pl_amount / total_cost * 100) if total_cost > 0 else None
-
     return PortfolioDetailResponse(
         id=portfolio.id,
         name=portfolio.name,
@@ -202,12 +174,7 @@ async def get_portfolio(
         created_at=portfolio.created_at,
         updated_at=portfolio.updated_at,
         holdings=holding_responses,
-        summary=PortfolioSummary(
-            total_value=total_value,
-            total_cost=total_cost,
-            total_pl_amount=total_pl_amount,
-            total_pl_percentage=total_pl_pct,
-        ),
+        summary=PortfolioSummary(total_value=total_value),
     )
 
 
@@ -274,29 +241,29 @@ async def add_holding(
     db: SessionDep,
     current_user: User = Depends(get_current_user),
 ):
-    await _get_portfolio_or_404(db, portfolio_id, current_user.id)
-
-    asset_result = await db.execute(select(Asset).where(Asset.id == payload.asset_id))
-    if not asset_result.scalar_one_or_none():
-        raise AssetNotFound()
-
-    existing = await db.execute(
-        select(Holding).where(
-            Holding.portfolio_id == portfolio_id,
-            Holding.asset_id == payload.asset_id,
-        )
+    portfolio_exists = await db.scalar(
+        select(Portfolio.id).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id)
     )
-    if existing.scalar_one_or_none():
-        raise HoldingAlreadyExists()
+    if not portfolio_exists:
+        raise PortfolioNotFound()
+
+    asset_exists = await db.scalar(select(Asset.id).where(Asset.id == payload.asset_id))
+    if not asset_exists:
+        raise AssetNotFound()
 
     holding = Holding(
         portfolio_id=portfolio_id,
         asset_id=payload.asset_id,
         quantity=payload.quantity,
-        avg_buy_price=payload.avg_buy_price,
         notes=payload.notes,
     )
     db.add(holding)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HoldingAlreadyExists()
+
     await db.commit()
     await db.refresh(holding)
 
@@ -314,10 +281,14 @@ async def update_holding(
     db: SessionDep,
     current_user: User = Depends(get_current_user),
 ):
-    await _get_portfolio_or_404(db, portfolio_id, current_user.id)
-
     result = await db.execute(
-        select(Holding).where(Holding.id == holding_id, Holding.portfolio_id == portfolio_id)
+        select(Holding)
+        .join(Portfolio, Holding.portfolio_id == Portfolio.id)
+        .where(
+            Holding.id == holding_id,
+            Holding.portfolio_id == portfolio_id,
+            Portfolio.user_id == current_user.id,
+        )
     )
     holding = result.scalar_one_or_none()
     if not holding:
@@ -342,10 +313,14 @@ async def delete_holding(
     db: SessionDep,
     current_user: User = Depends(get_current_user),
 ):
-    await _get_portfolio_or_404(db, portfolio_id, current_user.id)
-
     result = await db.execute(
-        select(Holding).where(Holding.id == holding_id, Holding.portfolio_id == portfolio_id)
+        select(Holding)
+        .join(Portfolio, Holding.portfolio_id == Portfolio.id)
+        .where(
+            Holding.id == holding_id,
+            Holding.portfolio_id == portfolio_id,
+            Portfolio.user_id == current_user.id,
+        )
     )
     holding = result.scalar_one_or_none()
     if not holding:

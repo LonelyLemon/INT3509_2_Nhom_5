@@ -10,14 +10,13 @@ import { useMarketStore } from "../../store/useMarketStore";
 
 interface AssetBrief { id: string; ticker: string; name: string | null; asset_type: string; }
 interface Holding {
-  id: string; asset: AssetBrief; quantity: number; avg_buy_price: number;
-  notes: string | null; cost_basis: number;
+  id: string; asset: AssetBrief; quantity: number;
+  notes: string | null;
   current_price: number | null; current_value: number | null;
-  pl_amount: number | null; pl_percentage: number | null; allocation: number | null;
+  allocation: number | null;
 }
 interface PortfolioSummary {
-  total_value: number; total_cost: number;
-  total_pl_amount: number; total_pl_percentage: number | null;
+  total_value: number;
 }
 interface Portfolio { id: string; name: string; description: string | null; is_default: boolean; }
 interface PortfolioDetail extends Portfolio { holdings: Holding[]; summary: PortfolioSummary; }
@@ -35,10 +34,6 @@ const fmtC = (n: number | null) => {
   if (abs >= 10_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
   return `${sign}$${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
-const fmtPct = (n: number | null) => n == null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
-const plColor = (n: number | null) =>
-  n == null ? "text-[var(--text-color)]/50"
-    : n > 0 ? "text-emerald-500" : n < 0 ? "text-rose-500" : "text-[var(--text-color)]/50";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -86,14 +81,12 @@ export const PortfolioPage = () => {
   const [holdingSearch, setHoldingSearch] = useState("");
   const [holdingAssetId, setHoldingAssetId] = useState("");
   const [holdingQty, setHoldingQty] = useState("");
-  const [holdingPrice, setHoldingPrice] = useState("");
   const [holdingNotes, setHoldingNotes] = useState("");
   const [addingHolding, setAddingHolding] = useState(false);
 
   // Holding edit
   const [editHolding, setEditHolding] = useState<Holding | null>(null);
   const [editQty, setEditQty] = useState("");
-  const [editPrice, setEditPrice] = useState("");
   const [editNotes, setEditNotes] = useState("");
 
   // Portfolio description edit
@@ -176,17 +169,16 @@ export const PortfolioPage = () => {
   );
 
   const addHolding = async () => {
-    if (!active || !holdingAssetId || !holdingQty || !holdingPrice) return;
+    if (!active || !holdingAssetId || !holdingQty) return;
     setAddingHolding(true);
     try {
       await api.post(`/portfolio/${active.id}/holdings`, {
         asset_id: holdingAssetId,
         quantity: parseFloat(holdingQty),
-        avg_buy_price: parseFloat(holdingPrice),
         notes: holdingNotes.trim() || null,
       });
       setShowAddHolding(false);
-      setHoldingAssetId(""); setHoldingSearch(""); setHoldingQty(""); setHoldingPrice(""); setHoldingNotes("");
+      setHoldingAssetId(""); setHoldingSearch(""); setHoldingQty(""); setHoldingNotes("");
       loadDetail(active.id);
     } finally { setAddingHolding(false); }
   };
@@ -195,7 +187,6 @@ export const PortfolioPage = () => {
     if (!active || !editHolding) return;
     await api.patch(`/portfolio/${active.id}/holdings/${editHolding.id}`, {
       quantity: parseFloat(editQty),
-      avg_buy_price: parseFloat(editPrice),
       notes: editNotes.trim() || null,
     });
     setEditHolding(null);
@@ -346,17 +337,6 @@ export const PortfolioPage = () => {
             {/* Summary cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <SummaryCard label="Total Value" value={`$${fmt(active.summary.total_value)}`} />
-              <SummaryCard label="Total Cost" value={`$${fmt(active.summary.total_cost)}`} />
-              <SummaryCard
-                label="P&L Amount"
-                value={`${active.summary.total_pl_amount >= 0 ? "+" : ""}$${fmt(active.summary.total_pl_amount)}`}
-                positive={active.summary.total_pl_amount > 0 ? true : active.summary.total_pl_amount < 0 ? false : null}
-              />
-              <SummaryCard
-                label="P&L %"
-                value={fmtPct(active.summary.total_pl_percentage)}
-                positive={active.summary.total_pl_percentage != null ? active.summary.total_pl_percentage > 0 : null}
-              />
             </div>
 
             {/* Add holding form */}
@@ -395,15 +375,9 @@ export const PortfolioPage = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Quantity</label>
-                    <input type="number" min="0" value={holdingQty} onChange={e => setHoldingQty(e.target.value)} placeholder="e.g. 100" className="input-field w-full text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Avg Buy Price</label>
-                    <input type="number" min="0" value={holdingPrice} onChange={e => setHoldingPrice(e.target.value)} placeholder="e.g. 68000" className="input-field w-full text-sm" />
-                  </div>
+                <div>
+                  <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Quantity</label>
+                  <input type="number" min="0" value={holdingQty} onChange={e => setHoldingQty(e.target.value)} placeholder="e.g. 100" className="input-field w-full text-sm" />
                 </div>
                 <div>
                   <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Notes (optional)</label>
@@ -413,7 +387,7 @@ export const PortfolioPage = () => {
                   <button onClick={() => setShowAddHolding(false)} className="px-4 py-1.5 text-sm rounded-lg border border-[var(--border-color)] hover:bg-[var(--border-color)]/30 transition-colors">Cancel</button>
                   <button
                     onClick={addHolding}
-                    disabled={addingHolding || !holdingAssetId || !holdingQty || !holdingPrice}
+                    disabled={addingHolding || !holdingAssetId || !holdingQty}
                     className="btn-primary px-4 py-1.5 text-sm disabled:opacity-50 flex items-center gap-1"
                   >
                     {addingHolding ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Add
@@ -433,7 +407,7 @@ export const PortfolioPage = () => {
                   <table className="w-full text-sm">
                     <thead className="border-b border-[var(--border-color)] text-xs text-[var(--text-color)]/50 uppercase">
                       <tr>
-                        {["Asset", "Qty", "Avg Price", "Cost Basis", "Cur. Price", "Value", "P&L", "Alloc", ""].map(h => (
+                        {["Asset", "Qty", "Cur. Price", "Value", "Alloc", ""].map(h => (
                           <th key={h} className="px-3 py-3 text-left font-medium">{h}</th>
                         ))}
                       </tr>
@@ -443,8 +417,6 @@ export const PortfolioPage = () => {
                         const lp = latestPrices[h.asset.ticker];
                         const price = h.current_price ?? lp?.close ?? null;
                         const value = price != null ? h.quantity * price : h.current_value;
-                        const pl = price != null ? value! - h.cost_basis : h.pl_amount;
-                        const plPct = (pl != null && h.cost_basis > 0) ? pl / h.cost_basis * 100 : h.pl_percentage;
                         const isEditing = editHolding?.id === h.id;
 
                         return (
@@ -477,26 +449,10 @@ export const PortfolioPage = () => {
                                 ? <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} className="input-field w-20 text-xs py-1" />
                                 : <span className="text-xs">{fmt(h.quantity, 0)}</span>}
                             </td>
-                            {/* Avg price */}
-                            <td className="px-3 py-2.5">
-                              {isEditing
-                                ? <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="input-field w-24 text-xs py-1" />
-                                : <span className="text-xs">{fmtC(h.avg_buy_price)}</span>}
-                            </td>
-                            {/* Cost basis */}
-                            <td className="px-3 py-2.5 text-xs">{fmtC(h.cost_basis)}</td>
                             {/* Current price */}
                             <td className="px-3 py-2.5 text-xs">{price != null ? fmtC(price) : "—"}</td>
                             {/* Value */}
                             <td className="px-3 py-2.5 text-xs">{value != null ? fmtC(value) : "—"}</td>
-                            {/* P&L */}
-                            <td className={`px-3 py-2.5 text-xs ${plColor(pl)}`}>
-                              <div className="flex items-center gap-0.5">
-                                {pl != null && pl > 0 ? <TrendingUp size={11} /> : pl != null && pl < 0 ? <TrendingDown size={11} /> : null}
-                                <span>{pl != null ? fmtC(pl) : "—"}</span>
-                              </div>
-                              <p className="text-[10px] opacity-80">{fmtPct(plPct)}</p>
-                            </td>
                             {/* Allocation */}
                             <td className="px-3 py-2.5 text-xs">{h.allocation != null ? `${h.allocation.toFixed(1)}%` : "—"}</td>
                             {/* Actions */}
@@ -509,7 +465,7 @@ export const PortfolioPage = () => {
                                   </>
                                 ) : (
                                   <>
-                                    <button onClick={() => { setEditHolding(h); setEditQty(String(h.quantity)); setEditPrice(String(h.avg_buy_price)); setEditNotes(h.notes ?? ""); }} className="p-1 rounded hover:text-[var(--color-primary)] transition-colors"><Pencil size={12} /></button>
+                                    <button onClick={() => { setEditHolding(h); setEditQty(String(h.quantity)); setEditNotes(h.notes ?? ""); }} className="p-1 rounded hover:text-[var(--color-primary)] transition-colors"><Pencil size={12} /></button>
                                     <button onClick={() => deleteHolding(h.id)} className="p-1 rounded hover:text-rose-400 transition-colors"><Trash2 size={12} /></button>
                                   </>
                                 )}
