@@ -29,10 +29,19 @@ celery_app.conf.update(
 #   16:00 ET  →  03:00 HCM (+1 day)
 # ---------------------------------------------------------------------------
 celery_app.conf.beat_schedule = {
-    # ── Price ──
+    # ── Price (1m) ──
     "fetch-1m-price-data": {
         "task": "src.price.tasks.ingest_1m_price_data",
         "schedule": crontab(minute="*"),  # every minute
+    },
+
+    # ── Price (historical refresh) ──
+    # Refreshes daily and hourly candles once per day at 06:00 HCM.
+    # This keeps 1h/1d timeframes up-to-date without re-running the full
+    # manual backfill.  Uses on_conflict_do_nothing so it's always safe.
+    "refresh-historical-price-data": {
+        "task": "src.price.tasks.ingest_historical_price_data",
+        "schedule": crontab(hour=6, minute=0),  # 06:00 HCM = 23:00 UTC prev day
     },
 
     # ── News ──

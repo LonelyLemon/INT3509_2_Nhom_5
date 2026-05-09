@@ -5,6 +5,12 @@
  * so wicks, bodies, and colours are pixel-perfect at any zoom level.
  * The chart auto-fits to the container width via a ResizeObserver and
  * updates grid/text/bg colours whenever the dark-mode class on <html> changes.
+ *
+ * Update strategy:
+ * - On initial data load (or after ticker/timeframe change via key remount):
+ *   setData() + fitContent() to show the full history.
+ * - On subsequent silent refreshes (new candle every ~1 min):
+ *   series.update() for the last bar only — preserves the user's zoom/scroll.
  */
 import { useEffect, useRef, useMemo } from 'react';
 import {
@@ -56,6 +62,9 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  // Tracks the timestamp of the last candle fed to the series so we can
+  // distinguish "new candle appended" from "full dataset replaced".
+  const lastCandleTimeRef = useRef<number | null>(null);
 
   // Convert candles → Lightweight Charts CandlestickData (sorted asc)
   const lwData = useMemo<CandlestickData[]>(() => {
@@ -72,7 +81,9 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
       }));
   }, [candles]);
 
-  // Create chart once on mount
+  // Create chart once on mount. The parent passes a key={ticker-timeframe} prop
+  // so this component remounts (and the chart is recreated) whenever the active
+  // ticker or timeframe changes — no stale series data leaks between views.
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -85,7 +96,7 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
         timeVisible: true,
         secondsVisible: false,
         fixLeftEdge: true,
-        fixRightEdge: true,
+        fixRightEdge: false, // allow user to scroll past the last bar
       },
       handleScroll: true,
       handleScale: true,
@@ -102,6 +113,7 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
 
     chartRef.current = chart;
     seriesRef.current = series;
+    lastCandleTimeRef.current = null;
 
     // ── Resize observer: sync width with container ──────────────────────────
     const ro = new ResizeObserver((entries) => {
@@ -121,15 +133,30 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      lastCandleTimeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height]);
 
-  // Feed data whenever candles change
+  // Feed data whenever candles change.
   useEffect(() => {
     if (!seriesRef.current || !chartRef.current || !lwData.length) return;
-    seriesRef.current.setData(lwData);
-    chartRef.current.timeScale().fitContent();
+
+    const lastBar = lwData[lwData.length - 1];
+
+    if (lastCandleTimeRef.current === null) {
+      // Initial load: replace all data and fit the full history in view.
+      seriesRef.current.setData(lwData);
+      chartRef.current.timeScale().fitContent();
+    } else if (lastBar.time > lastCandleTimeRef.current) {
+      // A new candle arrived: append it without resetting the user's view.
+      seriesRef.current.update(lastBar);
+    } else {
+      // Same last timestamp (e.g. last candle of current bar updated in-place).
+      seriesRef.current.update(lastBar);
+    }
+
+    lastCandleTimeRef.current = lastBar.time as number;
   }, [lwData]);
 
   return (

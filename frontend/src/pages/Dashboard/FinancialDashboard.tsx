@@ -306,7 +306,7 @@ export const FinancialDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <CandlestickChart candles={candles} height={420} />
+              <CandlestickChart key={`${activeTicker}-${activeTimeframe}`} candles={candles} height={420} />
             )}
           </div>
 
