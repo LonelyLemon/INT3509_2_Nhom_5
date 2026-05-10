@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from loguru import logger
 from pydantic_ai import exceptions as pai_exceptions
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 
@@ -148,7 +149,7 @@ async def chat(
 
             # ── Phase 1: Classify intent (no streaming, fast ~1s) ────────────
             intent_result = await get_intent_agent().run(payload.message)
-            intent = intent_result.data
+            intent = intent_result.output
             routed_intent = intent.intent
 
             yield _sse("routing", {
@@ -202,12 +203,20 @@ async def chat(
             yield _sse("error", {"detail": e.detail})
         except RuntimeError as e:
             await db.rollback()
+            logger.error(f"AI RuntimeError for user {current_user.id}: {e}")
             yield _sse("error", {"detail": str(e)})
-        except pai_exceptions.AgentRunError:
+        except pai_exceptions.UserError as e:
+            # pydantic-ai configuration error (e.g. wrong agent kwarg)
             await db.rollback()
+            logger.error(f"pydantic-ai UserError: {e}")
+            yield _sse("error", {"detail": f"AI configuration error: {e}"})
+        except pai_exceptions.AgentRunError as e:
+            await db.rollback()
+            logger.error(f"pydantic-ai AgentRunError for user {current_user.id}: {e}")
             yield _sse("error", {"detail": "AI service error. Please try again."})
-        except Exception:
+        except Exception as e:
             await db.rollback()
+            logger.exception(f"Unexpected AI error for user {current_user.id}: {e}")
             yield _sse("error", {"detail": "An unexpected error occurred."})
 
     return StreamingResponse(

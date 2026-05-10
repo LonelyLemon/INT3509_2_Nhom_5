@@ -20,6 +20,7 @@ import {
   type ISeriesApi,
   type CandlestickData,
   type UTCTimestamp,
+  type LogicalRange,
   ColorType,
 } from 'lightweight-charts';
 import type { Candle } from '../../store/useMarketStore';
@@ -27,6 +28,8 @@ import type { Candle } from '../../store/useMarketStore';
 interface Props {
   candles: Candle[];
   height?: number;
+  /** Called when the user scrolls to (or near) the left edge of history. */
+  onLoadMore?: () => void;
 }
 
 const BULL = '#22c55e'; // green-500
@@ -58,13 +61,26 @@ function themeOptions() {
   };
 }
 
-export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => {
+export const CandlestickChart: React.FC<Props> = ({ candles, height = 420, onLoadMore }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  // Tracks the timestamp of the last candle fed to the series so we can
-  // distinguish "new candle appended" from "full dataset replaced".
+  // Timestamps used to detect what changed between renders:
+  //  lastCandleTimeRef  — timestamp of the rightmost (newest) bar
+  //  firstCandleTimeRef — timestamp of the leftmost (oldest) bar
+  // Both are in the chart's shifted-UTC seconds space.
   const lastCandleTimeRef = useRef<number | null>(null);
+  const firstCandleTimeRef = useRef<number | null>(null);
+  // Keep a stable ref to onLoadMore to avoid re-running the chart-setup
+  // effect every time the parent re-renders.
+  const onLoadMoreRef = useRef<(() => void) | undefined>(onLoadMore);
+  // Prevent firing loadMore multiple times while a fetch is already in-flight.
+  const loadingEarlierRef = useRef(false);
+
+  // Sync the ref whenever the prop changes.
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   // Convert candles → Lightweight Charts CandlestickData (sorted asc)
   const lwData = useMemo<CandlestickData[]>(() => {
@@ -95,8 +111,8 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        fixLeftEdge: true,
-        fixRightEdge: false, // allow user to scroll past the last bar
+        fixLeftEdge: false, // allow scrolling into history (we load more on demand)
+        fixRightEdge: false,
       },
       handleScroll: true,
       handleScale: true,
@@ -114,6 +130,7 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
     chartRef.current = chart;
     seriesRef.current = series;
     lastCandleTimeRef.current = null;
+    firstCandleTimeRef.current = null;
 
     // ── Resize observer: sync width with container ──────────────────────────
     const ro = new ResizeObserver((entries) => {
@@ -127,13 +144,28 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
     });
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
+    // ── Visible-range listener: load more history when near left edge ────────
+    const handleRangeChange = (range: LogicalRange | null) => {
+      if (!range || !onLoadMoreRef.current) return;
+      // Trigger when the leftmost visible bar index falls to 5 or below.
+      if (range.from <= 5 && !loadingEarlierRef.current) {
+        loadingEarlierRef.current = true;
+        onLoadMoreRef.current();
+        // Re-enable after a short delay so rapid scrolling doesn't spam requests.
+        setTimeout(() => { loadingEarlierRef.current = false; }, 1500);
+      }
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleRangeChange);
+
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleRangeChange);
       ro.disconnect();
       mo.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
       lastCandleTimeRef.current = null;
+      firstCandleTimeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height]);
@@ -142,21 +174,45 @@ export const CandlestickChart: React.FC<Props> = ({ candles, height = 420 }) => 
   useEffect(() => {
     if (!seriesRef.current || !chartRef.current || !lwData.length) return;
 
-    const lastBar = lwData[lwData.length - 1];
+    const firstBar = lwData[0];
+    const lastBar  = lwData[lwData.length - 1];
+    const prevFirst = firstCandleTimeRef.current;
+    const prevLast  = lastCandleTimeRef.current;
 
-    if (lastCandleTimeRef.current === null) {
-      // Initial load: replace all data and fit the full history in view.
+    if (prevLast === null) {
+      // ── Initial load: replace all data and fit the full history ──────────
       seriesRef.current.setData(lwData);
       chartRef.current.timeScale().fitContent();
-    } else if (lastBar.time > lastCandleTimeRef.current) {
-      // A new candle arrived: append it without resetting the user's view.
-      seriesRef.current.update(lastBar);
+
+    } else if (prevFirst !== null && (firstBar.time as number) < prevFirst) {
+      // ── Earlier candles prepended (historical scroll load) ────────────────
+      // Preserve the visible time range so the viewport doesn't jump.
+      const visibleRange = chartRef.current.timeScale().getVisibleRange();
+      seriesRef.current.setData(lwData);
+      if (visibleRange) {
+        chartRef.current.timeScale().setVisibleRange(visibleRange);
+      }
+
     } else {
-      // Same last timestamp (e.g. last candle of current bar updated in-place).
-      seriesRef.current.update(lastBar);
+      // ── New candles appended or in-place price update ─────────────────────
+      // Collect every bar newer than the last known timestamp and push them
+      // all to the series.  A single-bar update also covers the live-tick
+      // case (same timestamp, price refreshed).
+      const newBars = lwData.filter((b) => (b.time as number) > prevLast);
+      if (newBars.length > 0) {
+        for (const bar of newBars) {
+          seriesRef.current.update(bar);
+        }
+      } else {
+        // No new timestamp — update the current (live) bar in-place.
+        seriesRef.current.update(lastBar);
+      }
     }
 
-    lastCandleTimeRef.current = lastBar.time as number;
+    firstCandleTimeRef.current = firstBar.time as number;
+    lastCandleTimeRef.current  = lastBar.time as number;
+    // Allow the next load-more request now that the chart has been updated.
+    loadingEarlierRef.current = false;
   }, [lwData]);
 
   return (

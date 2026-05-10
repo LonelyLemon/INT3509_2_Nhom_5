@@ -26,7 +26,7 @@ def get_intent_agent() -> Agent:
     )
     return Agent(
         model=model,
-        result_type=IntentResult,
+        output_type=IntentResult,
         system_prompt="""
 You are an intent classifier for a financial market application called FinAI.
 Classify the user's message into exactly one of these intents and extract any ticker symbols mentioned.

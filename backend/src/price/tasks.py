@@ -9,14 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from src.core.celery import celery_app
+from src.core.config import settings
 from src.core.database import TaskSessionLocal
-from src.core.redis import get_redis
 from src.price.models import Asset, PriceData
 
 BATCH_SIZE = 50
 # "7d" is the maximum period yfinance supports for 1m interval.
-# The on_conflict_do_nothing upsert silently discards already-stored rows,
-# so running every minute is always safe.
 DOWNLOAD_PERIOD = "7d"
 MAX_RETRIES = 3
 # asyncpg hard-limits query parameters to 32767.
@@ -40,6 +38,28 @@ HISTORICAL_SPECS = [
     ("5m",  "60d",  "5m"),  # 5-minute  — 60 days
     ("1m",  "7d",   "1m"),  # 1-minute  — 7 days (yfinance hard limit)
 ]
+
+
+# ── Redis cache invalidation helper ─────────────────────────────────────────
+# The Celery worker is a separate process; get_redis() returns None there
+# because _redis_client is only initialised during FastAPI app startup.
+# We create a fresh connection per task run instead.
+
+async def _invalidate_price_cache(tickers: list[str]) -> None:
+    """Invalidate Redis price caches for the given tickers."""
+    if not settings.REDIS_URL:
+        return
+    try:
+        import redis.asyncio as aioredis
+        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        async with client:
+            for ticker in tickers:
+                async for key in client.scan_iter(f"price:history:{ticker}:*"):
+                    await client.delete(key)
+                await client.delete(f"price:latest:{ticker}")
+        logger.info(f"Redis cache invalidated for {len(tickers)} tickers.")
+    except Exception as exc:
+        logger.warning(f"Redis cache invalidation failed (non-critical): {exc}")
 
 
 # ── Ongoing 1m ingestion (every minute via Celery Beat) ─────────────────────
@@ -126,27 +146,35 @@ async def _process_ticker_batch(
     if not records:
         return
 
+    # Use on_conflict_do_update so the current (in-progress) candle's close
+    # price is always refreshed each minute, not frozen at first insertion.
+    inserted = 0
     for i in range(0, len(records), INSERT_CHUNK_SIZE):
         chunk = records[i : i + INSERT_CHUNK_SIZE]
         stmt = insert(PriceData).values(chunk)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["asset_id", "timestamp", "timeframe"]
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["asset_id", "timestamp", "timeframe"],
+            set_={
+                "open":      stmt.excluded.open,
+                "high":      stmt.excluded.high,
+                "low":       stmt.excluded.low,
+                "close":     stmt.excluded.close,
+                "adj_close": stmt.excluded.adj_close,
+                "volume":    stmt.excluded.volume,
+            },
         )
-        await db.execute(stmt)
+        result = await db.execute(stmt)
+        inserted += result.rowcount
     await db.commit()
 
-    # Invalidate Redis cache for updated tickers so the next API request
-    # always reads freshly ingested data instead of a stale cached response.
-    redis = get_redis()
-    if redis:
-        for ticker in tickers:
-            async for key in redis.scan_iter(f"price:history:{ticker}:*"):
-                await redis.delete(key)
-            await redis.delete(f"price:latest:{ticker}")
+    # Invalidate Redis cache so the next API request reads freshly ingested
+    # data.  The Celery worker is a separate process from the FastAPI app, so
+    # get_redis() always returns None here — we must create our own connection.
+    await _invalidate_price_cache(tickers)
 
     logger.info(
-        f"Ingested {len(records)} price records for {len(tickers)} tickers "
-        f"(period={DOWNLOAD_PERIOD})."
+        f"Ingested 1m data: {inserted} rows upserted out of {len(records)} "
+        f"fetched for {len(tickers)} tickers (period={DOWNLOAD_PERIOD})."
     )
 
 
@@ -184,6 +212,9 @@ async def _ingest_historical_price_data(ticker_symbol: str | None = None):
             )
             for asset in assets:
                 await _backfill_one_ticker(db, asset, yf_interval, yf_period, db_timeframe)
+
+        # Flush stale cached responses so the frontend immediately sees the new data.
+        await _invalidate_price_cache([a.ticker for a in assets])
 
 
 async def _backfill_one_ticker(

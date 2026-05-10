@@ -92,6 +92,7 @@ export const FinancialDashboard: React.FC = () => {
     candles, candlesLoading, candlesError,
     latestPrices,
     fetchTickers, fetchCandles, fetchLatestPrice,
+    loadEarlierCandles,
     setActiveTicker, setActiveTimeframe,
   } = useMarketStore();
 
@@ -306,7 +307,12 @@ export const FinancialDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <CandlestickChart key={`${activeTicker}-${activeTimeframe}`} candles={candles} height={420} />
+              <CandlestickChart
+              key={`${activeTicker}-${activeTimeframe}`}
+              candles={candles}
+              height={420}
+              onLoadMore={() => loadEarlierCandles(activeTicker, activeTimeframe)}
+            />
             )}
           </div>
 
