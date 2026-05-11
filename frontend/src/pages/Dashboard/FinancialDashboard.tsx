@@ -91,10 +91,14 @@ export const FinancialDashboard: React.FC = () => {
     activeTicker, activeTimeframe,
     candles, candlesLoading, candlesError,
     latestPrices,
+    hasMoreHistory, loadingEarlier,
     fetchTickers, fetchCandles, fetchLatestPrice,
     loadEarlierCandles,
     setActiveTicker, setActiveTimeframe,
   } = useMarketStore();
+
+  // Actual bar count drawn on the chart (excludes flat yfinance artifacts).
+  const [renderedCandleCount, setRenderedCandleCount] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -279,7 +283,7 @@ export const FinancialDashboard: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <Activity size={14} className="text-[var(--color-primary)]" />
               <span className="text-sm font-semibold opacity-70">
-                {activeTicker} · {activeTimeframe.toUpperCase()} · {candles.length} candles
+                {activeTicker} · {activeTimeframe.toUpperCase()} · {renderedCandleCount} candles
               </span>
             </div>
 
@@ -312,6 +316,9 @@ export const FinancialDashboard: React.FC = () => {
               candles={candles}
               height={420}
               onLoadMore={() => loadEarlierCandles(activeTicker, activeTimeframe)}
+              loadingEarlier={loadingEarlier}
+              hasMoreHistory={hasMoreHistory}
+              onRenderedCount={setRenderedCandleCount}
             />
             )}
           </div>
