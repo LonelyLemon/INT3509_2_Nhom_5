@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi.security import OAuth2PasswordRequestForm
 from loguru import logger
 
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 
 from fastapi import (APIRouter, BackgroundTasks,
                      Depends, HTTPException, Request)
@@ -15,7 +15,9 @@ from src.auth.schemas import (UserCreate, UserResponse, UserUpdate,
                               ForgetPasswordRequest,
                               ResendVerificationRequest,
                               ResetPasswordRequest,
-                              RefreshRequest)
+                              RefreshRequest,
+                              UserAdminResponse,
+                              UserRoleUpdate)
 from src.auth.models import User
 from src.auth.exceptions import (UserEmailExist, UserNotFound, UserNotVerified,
                                  InvalidToken, InvalidPassword,
@@ -370,3 +372,68 @@ async def ban_user(user_id: UUID,
         "message": f"User {target_user.username} has been {status}.",
         "is_banned": target_user.is_banned
     }
+
+
+#----------------------
+#   LIST ALL USERS
+#----------------------
+@auth_route.get('/admin/users', response_model=dict)
+async def list_users(
+    db: SessionDep,
+    page: int = 1,
+    limit: int = 20,
+    search: str = "",
+    role: str = "",
+    is_banned: str = "",
+    current_user: User = Depends(get_admin_user),
+):
+    offset = (page - 1) * limit
+    query = select(User)
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(or_(User.username.ilike(pattern), User.email.ilike(pattern)))
+    if role in ("admin", "user"):
+        query = query.where(User.role == role)
+    if is_banned == "true":
+        query = query.where(User.is_banned == True)
+    elif is_banned == "false":
+        query = query.where(User.is_banned == False)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(count_query)).scalar_one()
+
+    result = await db.execute(query.order_by(User.created_at.desc()).offset(offset).limit(limit))
+    users = result.scalars().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "users": [UserAdminResponse.model_validate(u) for u in users],
+    }
+
+
+#----------------------
+#   CHANGE USER ROLE
+#----------------------
+@auth_route.patch('/users/{user_id}/role')
+async def change_user_role(
+    user_id: UUID,
+    payload: UserRoleUpdate,
+    db: SessionDep,
+    current_user: User = Depends(get_admin_user),
+):
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Admins cannot change their own role.")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user = result.scalar_one_or_none()
+    if not target_user:
+        raise UserNotFound()
+
+    target_user.role = payload.role
+    await db.commit()
+    await db.refresh(target_user)
+
+    return {"message": f"User {target_user.username} is now {payload.role}.", "role": target_user.role}

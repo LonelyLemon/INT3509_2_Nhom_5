@@ -85,3 +85,21 @@ class UserPublicProfile(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
+class UserAdminResponse(BaseModel):
+    id: UUID
+    username: str
+    email: EmailStr
+    role: str
+    is_verified: bool
+    is_banned: bool
+    display_name: str | None = None
+    avatar_url: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(admin|user)$", description="New role: admin or user")

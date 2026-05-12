@@ -1,36 +1,29 @@
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from sqlalchemy import Column, String, Text, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy import String, Text, ForeignKey, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base_model import Base
+
 
 class Post(Base):
     __tablename__ = "posts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    is_published = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    author = relationship("User", back_populates="posts")
-    comments = relationship("Comment", back_populates="post", cascade="all, delete")
+    author: Mapped["User"] = relationship("User", back_populates="posts")
+    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="post", cascade="all, delete")
 
 
 class Comment(Base):
     __tablename__ = "comments"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"))
-    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    parent_id = Column(UUID(as_uuid=True), ForeignKey("comments.id"), nullable=True)
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id"), nullable=False)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("comments.id"), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    post = relationship("Post", back_populates="comments")
-    author = relationship("User", back_populates="comments")
+    post: Mapped["Post"] = relationship("Post", back_populates="comments")
+    author: Mapped["User"] = relationship("User", back_populates="comments")
