@@ -41,13 +41,19 @@ Classify the user's message into exactly one of these intents and extract any ti
 
 - **market_analysis**: User asks for technical analysis, ticker comparisons, investment outlook,
   market trends, info about their own portfolio/watchlist, OR wants to manage (add/remove/update)
-  portfolio holdings and watchlist items.
+  portfolio holdings and watchlist items. THIS INCLUDES any add/remove/update/create action on
+  watchlist or portfolio — even if phrased with investment intent.
   Examples: "Phân tích kỹ thuật VNM", "So sánh SSI và HCM", "Xu hướng thị trường",
   "Portfolio của tôi gồm gì?", "Danh sách watchlist", "Thị trường hôm nay thế nào?",
-  "Thêm AAPL vào watchlist", "Xóa HPG khỏi portfolio", "Thêm 100 cổ VNM vào danh mục"
+  "Thêm AAPL vào watchlist", "Xóa HPG khỏi portfolio", "Thêm 100 cổ VNM vào danh mục",
+  "Theo dõi VNM", "Bỏ theo dõi SSI", "Tạo portfolio mới", "Cập nhật số lượng BTC",
+  "Add ETH to my watchlist", "Remove AAPL from portfolio", "Update my holdings",
+  "Xác nhận" (confirmation reply in portfolio/watchlist context),
+  "Đồng ý", "OK thêm vào", "Được, thêm đi", "Yes, proceed"
 
 - **investment_advice**: User asks for investment advice, buy/sell/hold recommendations,
   entry/exit points, risk assessment, or investment outlook for a specific asset or portfolio.
+  IMPORTANT: Do NOT use this for requests that add/remove/update portfolio or watchlist items.
   Examples: "Có nên mua VNM không?", "Tư vấn đầu tư BTC", "Nên giữ hay bán SSI?",
   "Rủi ro khi đầu tư HPG", "Portfolio của tôi có nên điều chỉnh không?",
   "Should I buy AAPL now?", "Give me investment advice on ETH"

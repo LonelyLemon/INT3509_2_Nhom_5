@@ -158,7 +158,14 @@ async def chat(
             deps = AgentDeps(db=db, user_id=current_user.id)
 
             # ── Phase 1: Classify intent (no streaming, fast ~1s) ────────────
-            intent_result = await get_intent_agent().run(payload.message)
+            # For follow-up turns, pass recent history so the intent agent
+            # can correctly classify short continuation messages like
+            # "Xác nhận", "100 cổ", "OK" in context of an ongoing operation.
+            classification_history = message_history[-4:] if message_history else None
+            intent_result = await get_intent_agent().run(
+                payload.message,
+                message_history=classification_history,
+            )
             intent = intent_result.output
             routed_intent = intent.intent
 
