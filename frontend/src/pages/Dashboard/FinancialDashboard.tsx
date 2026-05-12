@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useMarketStore } from '../../store/useMarketStore';
 import { CandlestickChart } from '../../components/Market/CandlestickChart';
 import { WatchlistManager } from '../../components/Portfolio/WatchlistManager';
+import { IndicatorPanel } from '../../components/Market/IndicatorPanel/IndicatorPanel';
 import {
   Search, TrendingUp, TrendingDown,
   Activity, RefreshCw, ChevronRight, Zap,
@@ -322,6 +323,11 @@ export const FinancialDashboard: React.FC = () => {
             />
             )}
           </div>
+
+          {/* Technical Indicators Panel */}
+          {activeTicker && (
+            <IndicatorPanel ticker={activeTicker} timeframe={activeTimeframe} />
+          )}
 
           {/* Stats row */}
           {activePrice && (

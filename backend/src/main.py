@@ -25,6 +25,7 @@ from src.blog.router import blog_route
 from src.portfolio.router import portfolio_route
 from src.watchlist.router import watchlist_route
 from src.ai.router import ai_route
+from src.indicators.router import indicators_router
 
 THIS_DIR = Path(__file__).parent
 
@@ -161,3 +162,4 @@ app.include_router(blog_route)
 app.include_router(portfolio_route)
 app.include_router(watchlist_route)
 app.include_router(ai_route)
+app.include_router(indicators_router)

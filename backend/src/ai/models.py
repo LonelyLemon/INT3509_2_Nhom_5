@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import String, Text, ForeignKey, Index
+from sqlalchemy import String, Text, ForeignKey, Index, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base_model import Base
@@ -16,6 +17,9 @@ class Conversation(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     title: Mapped[str] = mapped_column(String(256), nullable=False, default="New conversation")
+    rating: Mapped[str | None] = mapped_column(String(8), nullable=True, default=None)
+    feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    rated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation",

@@ -1,17 +1,18 @@
 import json
 import uuid
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from loguru import logger
 from pydantic_ai import exceptions as pai_exceptions
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import get_current_user, get_admin_user
 from src.auth.models import User
 from src.core.database import SessionDep
 from src.core.redis import get_redis
@@ -22,6 +23,7 @@ from src.ai.agent import (
     get_guide_agent,
     get_data_agent,
     get_analysis_agent,
+    get_advisor_agent,
 )
 from src.ai.models import Conversation, Message
 from src.ai.schemas import (
@@ -30,8 +32,12 @@ from src.ai.schemas import (
     ConversationDetailResponse,
     MessageResponse,
     ConversationUpdate,
+    ConversationFeedbackRequest,
+    AIAdminStats,
+    RecentFeedbackItem,
 )
-from src.ai.exceptions import ConversationNotFound, AIRateLimitExceeded, AIServiceUnavailable
+from src.ai.exceptions import ConversationNotFound, AIRateLimitExceeded, AIServiceUnavailable, AIContentPolicyViolation
+from src.ai.guardrails import check_input_policy
 
 ai_route = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -43,6 +49,7 @@ _AGENT_LABELS = {
     "app_guide": "Trợ lý Hướng dẫn",
     "market_data": "Trợ lý Dữ liệu thị trường",
     "market_analysis": "Trợ lý Phân tích thị trường",
+    "investment_advice": "Trợ lý Tư vấn Đầu tư",
     "general": "Trợ lý Hướng dẫn",
 }
 
@@ -94,6 +101,8 @@ def _select_agent(intent: str):
         return get_analysis_agent()
     if intent == "market_data":
         return get_data_agent()
+    if intent == "investment_advice":
+        return get_advisor_agent()
     # app_guide and general both go to guide agent
     return get_guide_agent()
 
@@ -120,6 +129,7 @@ async def chat(
     - `done`     — stream complete, includes conversation_id and agent used
     - `error`    — error message
     """
+    check_input_policy(payload.message)
     await _check_ai_rate_limit(current_user.id)
 
     # Resolve or create conversation
@@ -284,3 +294,66 @@ async def delete_conversation(
     conv = await _get_conversation_or_404(db, conversation_id, current_user.id)
     await db.delete(conv)
     await db.commit()
+
+
+# ── Feedback ──────────────────────────────────────────────────────────────────
+
+@ai_route.post("/conversations/{conversation_id}/feedback", status_code=200)
+async def rate_conversation(
+    conversation_id: UUID,
+    payload: ConversationFeedbackRequest,
+    db: SessionDep,
+    current_user: User = Depends(get_current_user),
+):
+    """User rates a conversation like/dislike with optional feedback text."""
+    conv = await _get_conversation_or_404(db, conversation_id, current_user.id)
+    conv.rating = payload.rating
+    conv.feedback_text = payload.feedback_text
+    conv.rated_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"message": "Feedback recorded.", "rating": conv.rating}
+
+
+# ── Admin Stats ───────────────────────────────────────────────────────────────
+
+@ai_route.get("/admin/stats", response_model=AIAdminStats)
+async def get_ai_admin_stats(
+    db: SessionDep,
+    _admin: User = Depends(get_admin_user),
+):
+    """Admin-only: aggregate feedback stats for all AI conversations."""
+    total = (await db.execute(select(func.count()).select_from(Conversation))).scalar_one()
+    like_count = (
+        await db.execute(
+            select(func.count()).select_from(Conversation).where(Conversation.rating == "like")
+        )
+    ).scalar_one()
+    dislike_count = (
+        await db.execute(
+            select(func.count()).select_from(Conversation).where(Conversation.rating == "dislike")
+        )
+    ).scalar_one()
+    unrated = total - like_count - dislike_count
+
+    rated = like_count + dislike_count
+    like_rate = round(like_count / rated * 100, 1) if rated else 0.0
+    dislike_rate = round(dislike_count / rated * 100, 1) if rated else 0.0
+
+    recent_rows = (
+        await db.execute(
+            select(Conversation)
+            .where(Conversation.rating.isnot(None))
+            .order_by(Conversation.rated_at.desc())
+            .limit(20)
+        )
+    ).scalars().all()
+
+    return AIAdminStats(
+        total_conversations=total,
+        like_count=like_count,
+        dislike_count=dislike_count,
+        unrated_count=unrated,
+        like_rate_pct=like_rate,
+        dislike_rate_pct=dislike_rate,
+        recent_feedback=[RecentFeedbackItem.model_validate(r) for r in recent_rows],
+    )

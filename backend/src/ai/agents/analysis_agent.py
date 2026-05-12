@@ -11,6 +11,8 @@ from src.ai.tools.news_tools import get_news_for_ticker
 from src.ai.tools.market_tools import compare_assets, get_market_sentiment
 from src.ai.tools.portfolio_tools import get_portfolio_summary
 from src.ai.tools.watchlist_tools import get_watchlist
+from src.ai.tools.portfolio_write_tools import create_portfolio, add_holding, update_holding, remove_holding
+from src.ai.tools.watchlist_write_tools import add_to_watchlist, remove_from_watchlist
 
 
 @lru_cache(maxsize=1)
@@ -30,7 +32,8 @@ def get_analysis_agent() -> Agent:
         deps_type=AgentDeps,
         system_prompt="""
 Bạn là chuyên gia phân tích thị trường tài chính của FinAI. Nhiệm vụ của bạn là phân tích
-dữ liệu thị trường chuyên sâu và cung cấp góc nhìn đầu tư khách quan, có căn cứ.
+dữ liệu thị trường chuyên sâu, cung cấp góc nhìn đầu tư khách quan, và quản lý portfolio/watchlist
+theo yêu cầu của người dùng.
 
 ## Nguyên tắc phân tích
 - **Luôn lấy dữ liệu thực trước khi phân tích.** Không bịa số liệu.
@@ -46,15 +49,24 @@ dữ liệu thị trường chuyên sâu và cung cấp góc nhìn đầu tư kh
 3. **Sentiment & tin tức** — tóm tắt tin tức gần đây, tâm lý thị trường
 4. **Kết luận** — tín hiệu tổng hợp (bullish/bearish/neutral) và lý do
 
+## Quản lý Portfolio & Watchlist
+- User có thể nhờ bạn thêm/sửa/xóa holdings trong portfolio hoặc thêm/xóa mã trong watchlist.
+- Khi user nói "thêm X vào watchlist" → gọi tool_add_to_watchlist(ticker=X).
+- Khi user nói "xóa X khỏi watchlist" → gọi tool_remove_from_watchlist(ticker=X).
+- Khi user nói "thêm X vào portfolio" → gọi tool_add_holding(ticker=X, quantity=...).
+  Nếu user không nói số lượng, hỏi lại trước khi thực hiện.
+- Khi user nói "xóa X khỏi portfolio" → gọi tool_remove_holding(ticker=X).
+- Khi user nói "sửa/cập nhật X trong portfolio" → gọi tool_update_holding.
+- Khi user muốn tạo portfolio mới → gọi tool_create_portfolio(name=...).
+- Sau khi thực hiện, xác nhận kết quả với user.
+
 ## Phạm vi và giới hạn
 - Trả lời bằng ngôn ngữ người dùng (tiếng Việt hoặc tiếng Anh).
 - Chỉ phân tích tài chính và thị trường. Từ chối câu hỏi ngoài chủ đề lịch sự.
 - **Không** đưa ra lời khuyên cụ thể về thời điểm hoặc số tiền mua/bán.
 - **Về portfolio:** FinAI không lưu giá mua hay lịch sử giao dịch. Nếu user hỏi về lãi/lỗ (P&L),
-  giải thích rõ ứng dụng chỉ theo dõi holdings và giá trị hiện tại theo thời gian thực,
-  không hỗ trợ giao dịch trực tiếp nên không tính được P&L.
+  giải thích rõ ứng dụng chỉ theo dõi holdings và giá trị hiện tại theo thời gian thực.
 - Khi phân tích portfolio: tập trung vào cơ cấu tài sản, phân bổ, và giá trị hiện tại.
-  Bổ sung phân tích ngắn về triển vọng từng tài sản trong danh mục nếu phù hợp.
 """,
     )
 
@@ -85,11 +97,11 @@ dữ liệu thị trường chuyên sâu và cung cấp góc nhìn đầu tư kh
         ticker: str,
     ) -> dict:
         """
-        Calculate technical indicators for a ticker: RSI(14), MACD(12,26,9),
-        SMA(20), SMA(50), and Bollinger Bands(20,2) with plain-language interpretations.
+        Calculate technical indicators for a ticker: RSI, MACD, SMA, EMA
+        using the user's saved settings (configurable via /indicators/settings).
         Always use this when performing technical analysis.
         """
-        return await calculate_technical_indicators(ctx.deps.db, ticker)
+        return await calculate_technical_indicators(ctx.deps.db, ticker, ctx.deps.user_id)
 
     @agent.tool
     async def tool_get_news(
@@ -145,5 +157,87 @@ dữ liệu thị trường chuyên sâu và cung cấp góc nhìn đầu tư kh
         Use this to assess the news-driven sentiment backdrop for a ticker.
         """
         return await get_market_sentiment(ctx.deps.db, ticker, days_back)
+
+    # ── Portfolio write tools ────────────────────────────────────────────────
+
+    @agent.tool
+    async def tool_create_portfolio(
+        ctx: RunContext[AgentDeps],
+        name: str,
+        description: str | None = None,
+    ) -> dict:
+        """
+        Create a new portfolio for the user with the given name and optional description.
+        Use when user explicitly asks to create a new portfolio.
+        """
+        return await create_portfolio(ctx.deps.db, ctx.deps.user_id, name, description)
+
+    @agent.tool
+    async def tool_add_holding(
+        ctx: RunContext[AgentDeps],
+        ticker: str,
+        quantity: float,
+        portfolio_name: str | None = None,
+        notes: str | None = None,
+    ) -> dict:
+        """
+        Add or increase a holding in a portfolio.
+        If portfolio_name is None, uses the user's default portfolio.
+        Always ask for quantity if user did not specify it.
+        If ticker already exists, quantity is added to existing amount.
+        """
+        return await add_holding(ctx.deps.db, ctx.deps.user_id, ticker, quantity, portfolio_name, notes)
+
+    @agent.tool
+    async def tool_update_holding(
+        ctx: RunContext[AgentDeps],
+        ticker: str,
+        quantity: float,
+        portfolio_name: str | None = None,
+        notes: str | None = None,
+    ) -> dict:
+        """
+        Update the quantity (and optionally notes) of an existing holding.
+        Use when user wants to change the amount, not add to it.
+        If portfolio_name is None, uses the user's default portfolio.
+        """
+        return await update_holding(ctx.deps.db, ctx.deps.user_id, ticker, quantity, portfolio_name, notes)
+
+    @agent.tool
+    async def tool_remove_holding(
+        ctx: RunContext[AgentDeps],
+        ticker: str,
+        portfolio_name: str | None = None,
+    ) -> dict:
+        """
+        Remove a holding from a portfolio entirely.
+        If portfolio_name is None, uses the user's default portfolio.
+        """
+        return await remove_holding(ctx.deps.db, ctx.deps.user_id, ticker, portfolio_name)
+
+    # ── Watchlist write tools ────────────────────────────────────────────────
+
+    @agent.tool
+    async def tool_add_to_watchlist(
+        ctx: RunContext[AgentDeps],
+        ticker: str,
+    ) -> dict:
+        """
+        Add a ticker to the user's watchlist.
+        Use when user says 'add X to my watchlist' or 'theo dõi X'.
+        Silent if ticker already exists.
+        """
+        return await add_to_watchlist(ctx.deps.db, ctx.deps.user_id, ticker)
+
+    @agent.tool
+    async def tool_remove_from_watchlist(
+        ctx: RunContext[AgentDeps],
+        ticker: str,
+    ) -> dict:
+        """
+        Remove a ticker from the user's watchlist.
+        Use when user says 'remove X from watchlist' or 'xóa X khỏi watchlist'.
+        """
+        return await remove_from_watchlist(ctx.deps.db, ctx.deps.user_id, ticker)
 
     return agent

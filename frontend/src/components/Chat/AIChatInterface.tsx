@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { QuickActions } from "./QuickActions";
+import { ConversationFeedback } from "./ConversationFeedback";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,17 +66,29 @@ const WELCOME: Msg = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }) => {
+interface AIChatInterfaceProps {
+  hideHeader?: boolean;
+  initialConversationId?: string | null;
+  onConversationCreated?: (id: string, title: string) => void;
+}
+
+export const AIChatInterface = ({
+  hideHeader = false,
+  initialConversationId = null,
+  onConversationCreated,
+}: AIChatInterfaceProps) => {
   const { t } = useTranslation();
 
   // Chat state
   const [messages, setMessages] = useState<Msg[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [routingInfo, setRoutingInfo] = useState<RoutingInfo | null>(null);
   const routingInfoRef = useRef<RoutingInfo | null>(null);
+
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // History panel state
   const [showHistory, setShowHistory] = useState(false);
@@ -87,6 +100,7 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const lastUserTextRef = useRef<string>("");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -184,12 +198,14 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
     setActiveTools([]);
     setIsStreaming(false);
     setShowHistory(false);
+    setShowFeedback(false);
   };
 
   // ── Send / stream ──────────────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
+    lastUserTextRef.current = text;
     const token = getToken();
     if (!token) {
       setMessages(prev => [...prev, { role: "ai", format: "text", error: true, content: "You must be logged in to use FinAI." }]);
@@ -250,7 +266,13 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
             } else if (event === "tool") {
               setActiveTools(prev => [...new Set([...prev, String(data.name)])]);
             } else if (event === "done") {
-              if (data.conversation_id) setConversationId(data.conversation_id);
+              if (data.conversation_id) {
+                const isNew = !conversationId;
+                setConversationId(data.conversation_id);
+                if (isNew && onConversationCreated) {
+                  onConversationCreated(data.conversation_id, lastUserTextRef.current.slice(0, 60) || "New conversation");
+                }
+              }
               const used: string[] = data.tools_used ?? [];
               setMessages(prev => {
                 const u = [...prev];
@@ -268,6 +290,7 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
               setActiveTools([]);
               setRoutingInfo(null);
               routingInfoRef.current = null;
+              setShowFeedback(true);
             } else if (event === "error") {
               setMessages(prev => {
                 const u = [...prev];
@@ -388,6 +411,11 @@ export const AIChatInterface = ({ hideHeader = false }: { hideHeader?: boolean }
             <Bot size={13} className="animate-pulse text-[var(--color-primary)]" />
             {t("chat.thinking", "FinAI is analyzing…")}
           </div>
+        )}
+
+        {/* Feedback widget — shown after stream completes */}
+        {showFeedback && conversationId && !isStreaming && (
+          <ConversationFeedback conversationId={conversationId} />
         )}
 
         <div ref={messagesEndRef} />

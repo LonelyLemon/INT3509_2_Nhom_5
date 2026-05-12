@@ -10,7 +10,7 @@ from src.core.config import settings
 
 
 class IntentResult(BaseModel):
-    intent: Literal["app_guide", "market_data", "market_analysis", "general"]
+    intent: Literal["app_guide", "market_data", "market_analysis", "investment_advice", "general"]
     tickers: list[str]
     language: Literal["vi", "en"]
 
@@ -40,9 +40,17 @@ Classify the user's message into exactly one of these intents and extract any ti
   Examples: "VNM giá bao nhiêu?", "Giá BTC hiện tại", "Tin tức về SSI", "Lịch sử giá HPG"
 
 - **market_analysis**: User asks for technical analysis, ticker comparisons, investment outlook,
-  market trends, or info about their own portfolio/watchlist.
+  market trends, info about their own portfolio/watchlist, OR wants to manage (add/remove/update)
+  portfolio holdings and watchlist items.
   Examples: "Phân tích kỹ thuật VNM", "So sánh SSI và HCM", "Xu hướng thị trường",
-  "Portfolio của tôi gồm gì?", "Danh sách watchlist", "Thị trường hôm nay thế nào?"
+  "Portfolio của tôi gồm gì?", "Danh sách watchlist", "Thị trường hôm nay thế nào?",
+  "Thêm AAPL vào watchlist", "Xóa HPG khỏi portfolio", "Thêm 100 cổ VNM vào danh mục"
+
+- **investment_advice**: User asks for investment advice, buy/sell/hold recommendations,
+  entry/exit points, risk assessment, or investment outlook for a specific asset or portfolio.
+  Examples: "Có nên mua VNM không?", "Tư vấn đầu tư BTC", "Nên giữ hay bán SSI?",
+  "Rủi ro khi đầu tư HPG", "Portfolio của tôi có nên điều chỉnh không?",
+  "Should I buy AAPL now?", "Give me investment advice on ETH"
 
 - **general**: Greetings, unclear, or off-topic messages.
   Examples: "Xin chào", "Bạn là ai?", "Bạn có thể làm gì?"

@@ -15,6 +15,7 @@ import { FinancialDashboard } from "./pages/Dashboard/FinancialDashboard";
 import { NewsAndCalendar } from "./pages/News/NewsAndCalendar";
 import { PortfolioPage } from "./pages/Portfolio/PortfolioPage";
 import { AdminPage } from "./pages/Admin/AdminPage";
+import { AIChatPage } from "./pages/AI/AIChatPage";
 
 // Placeholder pages (not yet implemented)
 const Forum = () => <div className="p-8"><h1 className="text-3xl font-bold">Community Forum</h1></div>;
@@ -76,6 +77,7 @@ function App() {
           <Route path="/news" element={<NewsAndCalendar />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/community" element={<Forum />} />
+          <Route path="/ai" element={<AIChatPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={
             <AdminRoute>

@@ -18,6 +18,7 @@ from src.ai.agents.intent_agent import get_intent_agent, IntentResult  # noqa: E
 from src.ai.agents.guide_agent import get_guide_agent  # noqa: E402
 from src.ai.agents.data_agent import get_data_agent  # noqa: E402
 from src.ai.agents.analysis_agent import get_analysis_agent  # noqa: E402
+from src.ai.agents.advisor_agent import get_advisor_agent  # noqa: E402
 
 __all__ = [
     "AgentDeps",
@@ -26,4 +27,5 @@ __all__ = [
     "get_guide_agent",
     "get_data_agent",
     "get_analysis_agent",
+    "get_advisor_agent",
 ]

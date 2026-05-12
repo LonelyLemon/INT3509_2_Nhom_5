@@ -21,3 +21,11 @@ class AIServiceUnavailable(HTTPException):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI service is temporarily unavailable. Please try again later.",
         )
+
+
+class AIContentPolicyViolation(HTTPException):
+    def __init__(self, detail: str = "Message violates content policy."):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )

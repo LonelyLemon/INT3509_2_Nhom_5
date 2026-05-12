@@ -12,6 +12,7 @@ import {
   Sun,
   Globe,
   ShieldAlert,
+  Bot,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { AIChatPopup } from "../components/Chat/AIChatPopup";
@@ -41,6 +42,7 @@ export const DashboardLayout = () => {
     { to: "/dashboard", icon: <BarChart2 size={20} />, label: t("navigation.dashboard") },
     { to: "/news", icon: <Newspaper size={20} />, label: t("navigation.news") },
     { to: "/portfolio", icon: <BriefcaseBusiness size={20} />, label: t("navigation.portfolio", "Portfolio") },
+    { to: "/ai", icon: <Bot size={20} />, label: t("navigation.ai", "AI Chat") },
     { to: "/community", icon: <Users size={20} />, label: t("navigation.community") },
     { to: "/profile", icon: <UserCircle size={20} />, label: t("auth.profile") },
   ];

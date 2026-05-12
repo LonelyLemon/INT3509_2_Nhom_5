@@ -4,10 +4,12 @@
  * conversations persist across route changes.
  */
 import { useState, useEffect, useRef } from "react";
-import { Bot, Minus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bot, Minus, Maximize2 } from "lucide-react";
 import { AIChatInterface } from "./AIChatInterface";
 
 export const AIChatPopup = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimised, setIsMinimised] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -62,6 +64,13 @@ export const AIChatPopup = () => {
             <p className="font-semibold text-sm leading-tight">FinAI Assistant</p>
             <p className="text-xs text-[var(--text-color)]/40">Always ready to analyze</p>
           </div>
+          <button
+            onClick={() => { setIsOpen(false); navigate("/ai"); }}
+            className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors"
+            title="Mở trang đầy đủ"
+          >
+            <Maximize2 size={13} className="opacity-60" />
+          </button>
           <button
             id="ai-chat-minimise"
             onClick={handleMinimise}
