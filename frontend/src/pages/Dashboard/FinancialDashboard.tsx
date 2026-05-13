@@ -5,7 +5,7 @@ import { WatchlistManager } from '../../components/Portfolio/WatchlistManager';
 import { IndicatorPanel } from '../../components/Market/IndicatorPanel/IndicatorPanel';
 import {
   Search, TrendingUp, TrendingDown,
-  Activity, RefreshCw, ChevronRight, Zap,
+  Activity, RefreshCw, ChevronRight, Zap, BarChart2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -105,6 +105,7 @@ export const FinancialDashboard: React.FC = () => {
   const [searchFocused, setSearchFocused] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showIndicators, setShowIndicators] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Initial load
@@ -269,6 +270,20 @@ export const FinancialDashboard: React.FC = () => {
               </div>
 
               <button
+                onClick={() => setShowIndicators(v => !v)}
+                title={showIndicators ? 'Ẩn chỉ báo kỹ thuật' : 'Hiện chỉ báo kỹ thuật'}
+                className={cn(
+                  'p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-medium',
+                  showIndicators
+                    ? 'border-[var(--color-primary)]/50 bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                    : 'border-[var(--border-color)] bg-[var(--card-bg)] opacity-50 hover:opacity-80'
+                )}
+              >
+                <BarChart2 size={14} />
+                <span className="hidden sm:inline">Indicators</span>
+              </button>
+
+              <button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] hover:border-[var(--color-primary)]/50 transition-all cursor-pointer"
@@ -325,7 +340,7 @@ export const FinancialDashboard: React.FC = () => {
           </div>
 
           {/* Technical Indicators Panel */}
-          {activeTicker && (
+          {activeTicker && showIndicators && (
             <IndicatorPanel ticker={activeTicker} timeframe={activeTimeframe} />
           )}
 

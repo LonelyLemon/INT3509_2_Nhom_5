@@ -33,12 +33,24 @@ class UserCreate(BaseModel):
             raise ValueError('Password must contain at least one uppercase letter')
         return v
 
+_MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+
+    @field_validator('avatar_url')
+    @classmethod
+    def validate_avatar_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if len(v.encode('utf-8')) > _MAX_AVATAR_BYTES:
+            raise ValueError('Avatar quá lớn. Vui lòng chọn ảnh nhỏ hơn 2MB.')
+        return v
 
     @field_validator('password')
     @classmethod

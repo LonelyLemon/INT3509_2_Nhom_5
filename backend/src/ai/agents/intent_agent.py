@@ -43,8 +43,15 @@ Classify the user's message into exactly one of these intents and extract any ti
   market trends, info about their own portfolio/watchlist, OR wants to manage (add/remove/update)
   portfolio holdings and watchlist items. THIS INCLUDES any add/remove/update/create action on
   watchlist or portfolio — even if phrased with investment intent.
+  IMPORTANT: Any question asking WHAT IS IN the user's portfolio/watchlist MUST be market_analysis.
+  Never classify personal portfolio/watchlist data queries as app_guide.
   Examples: "Phân tích kỹ thuật VNM", "So sánh SSI và HCM", "Xu hướng thị trường",
-  "Portfolio của tôi gồm gì?", "Danh sách watchlist", "Thị trường hôm nay thế nào?",
+  "Portfolio của tôi gồm gì?", "Hiện tại portfolios của tôi đang gồm những gì?",
+  "Danh mục của tôi có những mã nào?", "Tôi đang nắm giữ những gì?",
+  "Danh sách watchlist của tôi", "Tôi đang theo dõi những mã nào?",
+  "Watchlist của tôi gồm gì?", "Cho tôi xem portfolio", "Show me my holdings",
+  "What's in my portfolio?", "What am I tracking?", "List my watchlist",
+  "Thị trường hôm nay thế nào?",
   "Thêm AAPL vào watchlist", "Xóa HPG khỏi portfolio", "Thêm 100 cổ VNM vào danh mục",
   "Theo dõi VNM", "Bỏ theo dõi SSI", "Tạo portfolio mới", "Cập nhật số lượng BTC",
   "Add ETH to my watchlist", "Remove AAPL from portfolio", "Update my holdings",

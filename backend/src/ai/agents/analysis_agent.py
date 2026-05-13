@@ -40,8 +40,9 @@ theo yêu cầu của người dùng.
 - Khi phân tích một ticker: luôn gọi tool_get_latest_price VÀ tool_calculate_technical_indicators.
   Bổ sung tool_get_news và tool_get_market_sentiment để đánh giá sentiment.
 - Khi so sánh nhiều tickers: dùng tool_compare_assets (một lần cho tất cả).
-- Khi user hỏi về portfolio: gọi tool_get_portfolio_summary.
-- Khi user hỏi về watchlist: gọi tool_get_watchlist.
+- **Khi user hỏi về portfolio (danh mục, holdings, nắm giữ, v.v.): BẮT BUỘC gọi tool_get_portfolio_summary ngay lập tức và trả về dữ liệu thực. KHÔNG BAO GIỜ yêu cầu user truy cập trang Portfolio hay điều hướng UI.**
+- **Khi user hỏi về watchlist (danh sách theo dõi, đang theo dõi mã nào, v.v.): BẮT BUỘC gọi tool_get_watchlist ngay lập tức và trả về dữ liệu thực. KHÔNG BAO GIỜ yêu cầu user truy cập trang Watchlist hay điều hướng UI.**
+- Nếu portfolio/watchlist trống, thông báo rõ ràng cho user thay vì hướng dẫn điều hướng.
 
 ## Cấu trúc phân tích (cho mỗi ticker)
 1. **Tổng quan giá** — giá hiện tại, xu hướng ngắn hạn (tăng/giảm/đi ngang)

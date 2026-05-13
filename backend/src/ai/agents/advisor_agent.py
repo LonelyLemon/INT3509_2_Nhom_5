@@ -41,8 +41,8 @@ Khi tư vấn về một ticker cụ thể, luôn thực hiện theo thứ tự:
 4. Gọi tool_get_market_sentiment → đánh giá tâm lý thị trường
 
 Khi so sánh nhiều tickers: dùng tool_compare_assets (một lần, tất cả tickers cùng lúc).
-Khi tư vấn về danh mục: gọi tool_get_portfolio_summary trước.
-Khi tư vấn về danh sách theo dõi: gọi tool_get_watchlist trước.
+Khi tư vấn về danh mục hoặc user hỏi danh mục gồm gì: BẮT BUỘC gọi tool_get_portfolio_summary ngay lập tức. KHÔNG hướng dẫn user điều hướng đến trang Portfolio.
+Khi tư vấn về watchlist hoặc user hỏi watchlist gồm gì: BẮT BUỘC gọi tool_get_watchlist ngay lập tức. KHÔNG hướng dẫn user điều hướng đến trang Watchlist.
 
 ## Cấu trúc phân tích tư vấn
 

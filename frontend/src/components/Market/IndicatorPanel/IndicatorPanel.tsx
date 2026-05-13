@@ -57,7 +57,7 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
   };
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card !p-0 overflow-visible">
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none border-b border-[var(--border-color)]/40"
