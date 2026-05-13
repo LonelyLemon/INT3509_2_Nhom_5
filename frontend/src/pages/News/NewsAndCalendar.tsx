@@ -54,7 +54,7 @@ function SentimentBadge({ label, score }: { label?: string | null; score?: numbe
   );
   if (label === "BEARISH") return (
     <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
-      <TrendingDown size={11} /> BEARISH
+      <TrendingDown size={11} /> BEARISH {score != null ? `${(score * 100).toFixed(0)}%` : ""}
     </span>
   );
   return (
