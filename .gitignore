@@ -15,3 +15,5 @@ wheels/
 
 # Local Agent Skills
 .agent/
+
+service_account.json

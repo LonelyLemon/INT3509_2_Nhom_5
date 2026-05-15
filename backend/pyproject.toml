@@ -30,6 +30,9 @@ dependencies = [
     "uvicorn>=0.41.0",
     "vadersentiment>=3.3.2",
     "yfinance>=1.2.0",
+    "deepeval>=2.0.0",
+    "gspread>=6.0.0",
+    "google-auth>=2.0.0",
 ]
 
 [tool.pytest.ini_options]
