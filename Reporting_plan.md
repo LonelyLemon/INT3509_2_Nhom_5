@@ -137,10 +137,11 @@
 
 ## Chương 6: So sánh và thảo luận
 
-- 6.1 So sánh với các sản phẩm tương tự trên thị trường
+- 6.1 So sánh với một số sản phẩm tương tự trên thị trường
   - 6.1.1 TradingView
   - 6.1.2 CafeF / VNDirect
-  - 6.1.3 Bloomberg Terminal (tham chiếu cao cấp)
+  - 6.1.3 Bloomberg Terminal
+  - 6.1.4 Trading Agent (Alpha-vantage)
 - 6.2 Ưu điểm của MarketMind
 - 6.3 Hạn chế hiện tại
 - 6.4 Định hướng phát triển tiếp theo
