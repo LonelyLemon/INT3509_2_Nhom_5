@@ -153,9 +153,12 @@ async def chat(
         full_response = ""
         tool_names: list[str] = []
         routed_intent = "general"
+        # Capture user_id early — db.rollback() expires ORM objects, making
+        # attribute access fail with MissingGreenlet in async context.
+        user_id = current_user.id
 
         try:
-            deps = AgentDeps(db=db, user_id=current_user.id)
+            deps = AgentDeps(db=db, user_id=user_id)
 
             # ── Phase 1: Classify intent (no streaming, fast ~1s) ────────────
             # For follow-up turns, pass recent history so the intent agent
@@ -220,7 +223,7 @@ async def chat(
             yield _sse("error", {"detail": e.detail})
         except RuntimeError as e:
             await db.rollback()
-            logger.error(f"AI RuntimeError for user {current_user.id}: {e}")
+            logger.error(f"AI RuntimeError for user {user_id}: {e}")
             yield _sse("error", {"detail": str(e)})
         except pai_exceptions.UserError as e:
             # pydantic-ai configuration error (e.g. wrong agent kwarg)
@@ -229,11 +232,11 @@ async def chat(
             yield _sse("error", {"detail": f"AI configuration error: {e}"})
         except pai_exceptions.AgentRunError as e:
             await db.rollback()
-            logger.error(f"pydantic-ai AgentRunError for user {current_user.id}: {e}")
+            logger.error(f"pydantic-ai AgentRunError for user {user_id}: {e}")
             yield _sse("error", {"detail": "AI service error. Please try again."})
         except Exception as e:
             await db.rollback()
-            logger.exception(f"Unexpected AI error for user {current_user.id}: {e}")
+            logger.exception(f"Unexpected AI error for user {user_id}: {e}")
             yield _sse("error", {"detail": "An unexpected error occurred."})
 
     return StreamingResponse(

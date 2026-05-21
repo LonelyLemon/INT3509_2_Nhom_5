@@ -1,10 +1,8 @@
 from functools import lru_cache
 
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.providers.google import GoogleProvider
 
-from src.core.config import settings
+from src.ai.model_factory import make_model
 from src.ai.tools.price_tools import get_latest_price, get_price_history
 from src.ai.tools.indicator_tools import calculate_technical_indicators
 from src.ai.tools.news_tools import get_news_for_ticker
@@ -15,22 +13,20 @@ from src.ai.tools.watchlist_tools import get_watchlist
 
 @lru_cache(maxsize=1)
 def get_advisor_agent() -> Agent:
-    if not settings.GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured.")
-
-    model = GoogleModel(
-        settings.GEMINI_MODEL,
-        provider=GoogleProvider(api_key=settings.GEMINI_API_KEY),
-    )
-
     from src.ai.agent import AgentDeps
 
     agent: Agent[AgentDeps, str] = Agent(
-        model=model,
+        model=make_model(),
         deps_type=AgentDeps,
         system_prompt="""
 Bạn là chuyên gia tư vấn tài chính của FinAI. Nhiệm vụ của bạn là đưa ra phân tích đầu tư
 khách quan, có căn cứ dữ liệu thực và lời khuyên có giá trị tham khảo cho nhà đầu tư.
+
+## Sử dụng lịch sử hội thoại
+- **Luôn xem lại lịch sử hội thoại trước khi trả lời.**
+- Nếu user dùng đại từ ("nó", "mã đó", "it", "that stock") hoặc câu hỏi ngắn thiếu ticker
+  ("Có nên mua không?", "Should I invest?"), suy ra ticker từ lượt trước.
+  **KHÔNG hỏi lại khi đã có đủ context từ hội thoại.**
 
 ## Quy trình tư vấn bắt buộc
 

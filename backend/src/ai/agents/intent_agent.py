@@ -3,10 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.providers.google import GoogleProvider
 
-from src.core.config import settings
+from src.ai.model_factory import make_model
 
 
 class IntentResult(BaseModel):
@@ -17,15 +15,8 @@ class IntentResult(BaseModel):
 
 @lru_cache(maxsize=1)
 def get_intent_agent() -> Agent:
-    if not settings.GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured.")
-
-    model = GoogleModel(
-        settings.GEMINI_MODEL,
-        provider=GoogleProvider(api_key=settings.GEMINI_API_KEY),
-    )
     return Agent(
-        model=model,
+        model=make_model(),
         output_type=IntentResult,
         system_prompt="""
 You are an intent classifier for a financial market application called FinAI.
@@ -36,8 +27,11 @@ Classify the user's message into exactly one of these intents and extract any ti
 - **app_guide**: User asks how to use the application, its features, navigation, or what the app can do.
   Examples: "How do I add to watchlist?", "Cách sử dụng watchlist?", "App có những tính năng gì?"
 
-- **market_data**: User asks for simple data lookups — current price, price history, news for a ticker.
-  Examples: "VNM giá bao nhiêu?", "Giá BTC hiện tại", "Tin tức về SSI", "Lịch sử giá HPG"
+- **market_data**: User asks for simple data lookups — current price, price history, news for a ticker,
+  OR asks what assets/stocks the app supports (list of tickers).
+  Examples: "VNM giá bao nhiêu?", "Giá BTC hiện tại", "Tin tức về SSI", "Lịch sử giá HPG",
+  "Ứng dụng hỗ trợ những mã nào?", "Có những mã chứng khoán nào?", "What stocks are available?",
+  "Danh sách tài sản được hỗ trợ", "List all supported tickers"
 
 - **market_analysis**: User asks for technical analysis, ticker comparisons, investment outlook,
   market trends, info about their own portfolio/watchlist, OR wants to manage (add/remove/update)
@@ -59,11 +53,15 @@ Classify the user's message into exactly one of these intents and extract any ti
   "Đồng ý", "OK thêm vào", "Được, thêm đi", "Yes, proceed"
 
 - **investment_advice**: User asks for investment advice, buy/sell/hold recommendations,
-  entry/exit points, risk assessment, or investment outlook for a specific asset or portfolio.
+  entry/exit points, risk assessment, investment outlook for a specific asset, OR asks for
+  a portfolio review / health check (e.g. "is my portfolio OK?", "any issues with my holdings?").
   IMPORTANT: Do NOT use this for requests that add/remove/update portfolio or watchlist items.
   Examples: "Có nên mua VNM không?", "Tư vấn đầu tư BTC", "Nên giữ hay bán SSI?",
   "Rủi ro khi đầu tư HPG", "Portfolio của tôi có nên điều chỉnh không?",
-  "Should I buy AAPL now?", "Give me investment advice on ETH"
+  "Nhìn vào danh mục của tôi, bạn thấy có vấn đề gì không?",
+  "Danh mục của tôi có ổn không?", "Review my portfolio for me",
+  "Should I buy AAPL now?", "Give me investment advice on ETH",
+  "What do you think about my portfolio?", "Is my portfolio well-diversified?"
 
 - **general**: Greetings, unclear, or off-topic messages.
   Examples: "Xin chào", "Bạn là ai?", "Bạn có thể làm gì?"

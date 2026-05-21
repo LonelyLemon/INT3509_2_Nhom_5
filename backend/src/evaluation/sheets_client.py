@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 
 import gspread
@@ -61,10 +62,9 @@ class ScenarioResult:
     overall_result: str     # "PASSED" or "FAILED"
 
 
-def _get_worksheet() -> gspread.Worksheet:
+def _get_worksheet(max_retries: int = 5, backoff: float = 5.0) -> gspread.Worksheet:
     creds_file = eval_settings.GSHEETS_CREDENTIALS_FILE
     if not os.path.isabs(creds_file):
-        # Resolve relative to the backend/ directory (where the server runs from)
         creds_file = os.path.join(os.getcwd(), creds_file)
 
     if not os.path.exists(creds_file):
@@ -75,8 +75,22 @@ def _get_worksheet() -> gspread.Worksheet:
 
     creds = Credentials.from_service_account_file(creds_file, scopes=_SCOPES)
     client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(eval_settings.GSHEETS_SPREADSHEET_ID)
-    return spreadsheet.worksheet(eval_settings.GSHEETS_WORKSHEET_NAME)
+
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            spreadsheet = client.open_by_key(eval_settings.GSHEETS_SPREADSHEET_ID)
+            return spreadsheet.worksheet(eval_settings.GSHEETS_WORKSHEET_NAME)
+        except gspread.exceptions.APIError as exc:
+            last_exc = exc
+            status = getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
+            if status not in (500, 503, None) or attempt == max_retries:
+                raise
+            wait = backoff * attempt
+            logger.warning(f"Google Sheets API error ({status}) on attempt {attempt}/{max_retries}. Retrying in {wait}s...")
+            time.sleep(wait)
+
+    raise last_exc  # type: ignore[misc]
 
 
 def _parse_tools(raw: str) -> list[str]:

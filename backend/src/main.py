@@ -53,6 +53,13 @@ _SEED_TICKERS: list[tuple[str, str, AssetType]] = [
     ("BTC-USD", "Bitcoin",  AssetType.CRYPTO),
     ("ETH-USD", "Ethereum", AssetType.CRYPTO),
     ("BNB-USD", "BNB",      AssetType.CRYPTO),
+    # Vietnamese Stocks (HOSE) — yfinance symbol: <ticker>.VN
+    ("VCB",   "Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)", AssetType.STOCK),
+    ("FPT",   "Công ty Cổ phần FPT",                               AssetType.STOCK),
+    ("HPG",   "Tập đoàn Hòa Phát",                                 AssetType.STOCK),
+    ("VIC",   "Tập đoàn Vingroup",                                  AssetType.STOCK),
+    ("MSN",   "Tập đoàn Masan",                                     AssetType.STOCK),
+    ("TCB",   "Ngân hàng TMCP Kỹ thương Việt Nam (Techcombank)",   AssetType.STOCK),
 ]
 
 

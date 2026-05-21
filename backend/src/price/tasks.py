@@ -22,6 +22,22 @@ MAX_RETRIES = 3
 INSERT_CHUNK_SIZE = 2000
 RETRY_BASE_DELAY = 2.0  # seconds, doubles each attempt
 
+# Vietnamese HOSE tickers stored with short name in DB (e.g. "VCB") but
+# fetched from yfinance using the ".VN" suffix (e.g. "VCB.VN").
+_VN_TICKER_MAP: dict[str, str] = {
+    "VCB": "VCB.VN",
+    "FPT": "FPT.VN",
+    "HPG": "HPG.VN",
+    "VIC": "VIC.VN",
+    "MSN": "MSN.VN",
+    "TCB": "TCB.VN",
+}
+
+
+def _yf_symbol(ticker: str) -> str:
+    """Return the yfinance symbol for a DB ticker (adds .VN suffix for VN stocks)."""
+    return _VN_TICKER_MAP.get(ticker, ticker)
+
 # Specs for the one-time historical backfill task.
 # Each entry: (yfinance interval, yfinance period, DB timeframe label)
 #
@@ -90,7 +106,10 @@ async def _process_ticker_batch(
     tickers: list[str],
     ticker_to_id: dict[str, uuid.UUID],
 ):
-    tickers_str = " ".join(tickers)
+    # Map DB tickers to yfinance symbols (e.g. VCB → VCB.VN)
+    yf_symbols = [_yf_symbol(t) for t in tickers]
+    yf_to_db = {_yf_symbol(t): t for t in tickers}
+    tickers_str = " ".join(yf_symbols)
 
     download_fn = partial(
         yf.download,
@@ -121,11 +140,12 @@ async def _process_ticker_batch(
         return
 
     records: list[dict] = []
-    is_multi = len(tickers) > 1
+    is_multi = len(yf_symbols) > 1
 
-    for ticker in tickers:
-        asset_id = ticker_to_id[ticker]
-        ticker_df = df[ticker] if is_multi else df
+    for yf_sym in yf_symbols:
+        db_ticker = yf_to_db[yf_sym]
+        asset_id = ticker_to_id[db_ticker]
+        ticker_df = df[yf_sym] if is_multi else df
         ticker_df = ticker_df.dropna(subset=["Close"])
 
         for ts, row in ticker_df.iterrows():
@@ -227,7 +247,8 @@ async def _backfill_one_ticker(
     """Download and upsert historical data for a single ticker + timeframe."""
     # Use yf.Ticker.history() for per-ticker backfill — returns a flat DataFrame
     # with adjusted OHLCV (no separate Adj Close column needed).
-    ticker_obj = yf.Ticker(asset.ticker)
+    # Use mapped symbol so VN stocks (e.g. VCB → VCB.VN) resolve correctly.
+    ticker_obj = yf.Ticker(_yf_symbol(asset.ticker))
     fetch_fn = partial(ticker_obj.history, period=yf_period, interval=yf_interval)
 
     df = None
