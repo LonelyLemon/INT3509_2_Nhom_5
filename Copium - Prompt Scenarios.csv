@@ -1,0 +1,170 @@
+Scenario ID,Scenario Name,Turn #,Test Case Description (What is this step testing?),,EXACT User Input (What the user says),EXACT Expected Agent Output / Response,ACTUAL  Agent Output / Response (Tool),SCORE,RESULT (TOOL)
+STEP1_001,Request Overall Process Instructions,-1,User asks how the RFQ process works,,How does the RFQ creation process work?,"AI should return an instruction for creating RFQ including 4 steps: General Infor, Add item, add supplier, preview & publish:
+
+Of course. Here’s how the RFQ creation process works:
+
+1. First, you provide the general information for your RFQ, including the title, start date, and end date.
+2. Next, you add the items or products you want to include in the RFQ.
+3. Then, you add the suppliers who will receive the RFQ.
+4. Finally, you review and publish the RFQ.
+
+Let’s begin with step one. Please provide the start date, and end date. ",Error executing agent: unhandled errors in a TaskGroup (1 sub-exception),"FINAL SCORE: 0.07
+========================
+❌ Intent-Based Correctness: 0.10
+   Reason: The actual output is an error message and does not address the user's intent or provide any information about the RFQ creation process. It fails to deliver the required 4-step instructions or any relevant details, resulting in almost no alignment with the evaluation steps.
+
+❌ Role Adherence: 0.10
+   Reason: The user input is valid, asking about the RFQ creation process. The actual output is an error message and does not provide any information or support regarding the RFQ process, nor does it instruct the user on the correct steps. This fails to align with the evaluation steps, which require supporting or guiding the user for valid requests.
+
+❌ Data Extraction Accuracy: 0.00
+   Reason: The Input is general and does not contain specific data entities, so the response should provide a general answer or instructions about the RFQ creation process. However, the Actual Output only contains an error message and does not address the question or provide any relevant information, failing to meet the evaluation criteria.",FAILED
+STEP1_002,Request Step 1 Instructions,-1,User asks what information is needed for Step 1,,What information do I need to provide in Step 1?,"In Step 1 (General Information), you need to provide the required fields: start - end date, optionally, you can add title, description and currency",Error executing agent: unhandled errors in a TaskGroup (1 sub-exception),"FINAL SCORE: 0.07
+========================
+❌ Intent-Based Correctness: 0.10
+   Reason: The actual output is an error message and does not address the user's intent to learn what information is needed for Step 1 of the RFQ process. It fails to provide any of the required or recommended fields listed in the expected output, making it unhelpful and misaligned with the evaluation steps. The only reason it is not a zero is that it is a system error rather than an irrelevant or misleading response.
+
+❌ Role Adherence: 0.10
+   Reason: The Actual Output is an error message and does not address the user's valid question about Step 1 of the RFQ creation process. The agent fails to provide guidance or support, which is required for valid inputs per the evaluation steps. There is no alignment with the expected behavior.
+
+❌ Data Extraction Accuracy: 0.00
+   Reason: The Input does not contain any specific data entities, so the response should have received the maximum score if it provided relevant information or instructions. However, the Actual Output is an error message and does not address the user's question or provide any instructions, resulting in the minimum score.",FAILED
+STEP1_003,Explain RFQ Title Field,-1,User asks what RFQ title should contain,,What should I put in the RFQ title?,"The RFQ title should clearly describe the purpose or main subject of your Request for Quotation. For example, you can use titles like “2024 Q3 Sodium Chloride Purchase” or “Annual Supply of Industrial Chemicals.” A clear title helps both you and suppliers quickly identify the RFQ among others. Would you like to add an RFQ title now? If so, what would you like it to be? ",Error executing agent: unhandled errors in a TaskGroup (1 sub-exception),"FINAL SCORE: 0.03
+========================
+❌ Intent-Based Correctness: 0.00
+   Reason: The actual output is an error message and does not address the user's question about what to put in the RFQ title. It fails to provide any guidance, examples, or follow-up actions as outlined in the expected output, and does not fulfill the user's core intent for this RFQ creation step.
+
+❌ Role Adherence: 0.10
+   Reason: The user input is valid and directly related to the RFQ creation process, specifically asking for guidance on the RFQ title. However, the actual output is a system error message and does not address the user's question or provide any guidance, failing to support the request as required by the evaluation steps.
+
+❌ Data Extraction Accuracy: 0.00
+   Reason: The user input is general and does not contain any specific data entities, so the response should provide relevant guidance or information. However, the actual output is an error message unrelated to the user's question, failing to address the input in any meaningful way.",FAILED
+STEP1_004,Explain Start and End Dates,-1,User asks about date requirements,,What are start and end dates for?,"The start and end dates define the period during which your RFQ (Request for Quotation) is open for suppliers to submit their quotes.
+
+- Start date: The date when your RFQ becomes visible to suppliers and they can begin submitting their offers.
+- End date: The deadline for suppliers to submit their quotes. After this date, no more offers can be accepted.
+
+Setting clear start and end dates helps suppliers know when they can participate and ensures you receive all quotes within your desired timeframe. Would you like to provide the start and end dates for your RFQ now? If so, what are they? ",Error executing agent: unhandled errors in a TaskGroup (1 sub-exception),"FINAL SCORE: 0.05
+========================
+❌ Intent-Based Correctness: 0.00
+   Reason: The actual output is an error message and does not address the user's question about the purpose of start and end dates in the RFQ process. It fails to provide any explanation or relevant information, missing all required and recommended details from the expected output.
+
+❌ Role Adherence: 0.20
+   Reason: The user input is valid and related to the RFQ creation process, specifically asking for clarification about start and end dates. The actual output is an error message and does not address the user's question or provide any guidance. This is a critical failure in supporting the user, though it does not actively support an incorrect process or harmful input.
+
+❌ Data Extraction Accuracy: 0.00
+   Reason: The user input references specific data entities: 'start and end dates.' The actual output does not mention these entities or provide any relevant information, instead returning an error message. This fails to meet the requirement of referencing the data entities present in the input.",FAILED
+STEP1_005,Explain Description Field,-1,User asks what to include in description,,What should I write in the description?,"A good RFQ description should clearly outline your expectations, any formalities, and important information suppliers need before submitting their offers. Here’s a sample you can use or adapt:
+
+Dear business partners/suppliers!
+
+(For general instructions/rules regarding the tender procedure)
+
+If you have any questions, please enter them via Q&A tool until month/date/year in order to receive answers in time for bidding.
+As soon as we have finalized all analyses, we will inform you about the won positions until month/date/year.
+
+Payment / Delivery terms:
+We are looking forward to receiving your bids.
+
+Remain with kind regards, Chemical Company.
+
+Would you like to add a description? If so, please provide the text or let me know if you want to use the sample above. ",Error executing agent: unhandled errors in a TaskGroup (1 sub-exception),"FINAL SCORE: 0.04
+========================
+❌ Intent-Based Correctness: 0.10
+   Reason: The actual output does not address the user's intent, which is to receive guidance on what to write in the RFQ description. Instead, it returns a technical error message unrelated to the RFQ process or the user's request. No required or recommended information is provided, and the main task is not completed.
+
+❌ Role Adherence: 0.00
+   Reason: The Actual Output is an error message indicating a system failure, providing no guidance or support for the user's valid request about what to include in the RFQ description. This fails to adhere to the agent's role and does not address the RFQ creation process or user needs.
+
+❌ Data Extraction Accuracy: 0.00
+   Reason: The user input is general and does not contain specific data entities, so the response should receive the maximum score if it provides any relevant information or instructions. However, the actual output is an error message and does not address the user's question or provide instructions, resulting in no alignment with the evaluation steps.",FAILED
+STEP1_011,Complete RFQ Creation - All Fields Multiple Turn,1,User provides information across multiple conversational turns,,I want to create an RFQ for marketing services,AI ask for the start and end date,"To start creating your RFQ for marketing services, I'll need the following required details:
+- Start date of the RFQ (format: YYYY-MM-DD HH:MM)
+- End date of the RFQ (format: YYYY-MM-DD HH:MM)
+Please provide these dates and times so we can continue. If you only have the date, you can use 00:00 as the default time.","FINAL SCORE: 0.98
+========================
+✅ Intent-Based Correctness: 1.00
+   Reason: The actual output correctly identifies the user's intent to create an RFQ for marketing services and asks for the required start and end dates, as expected. It provides clear instructions on the format and offers a helpful default for time, aligning well with the expected output and the RFQ process step. There are no unnecessary or unrelated prompts.
+
+✅ Role Adherence: 0.90
+   Reason: The Actual Output correctly recognizes the valid user intent to create an RFQ and prompts for the next required details (start and end dates), aligning with the multi-turn process described in the Retrieval Context. It does not skip steps or provide irrelevant information. The only minor shortcoming is that it could have briefly acknowledged the RFQ type (marketing services) in the response, but overall, it closely follows the evaluation steps.
+
+✅ Data Extraction Accuracy: 1.00
+   Reason: The input is general and does not contain specific data entities such as dates, currency, or quantities. According to the evaluation steps, when the input is general, the maximum score should be assigned without checking for data entity references in the output.
+
+✅ Procedural Compliance: 1.00
+   Reason: The assistant correctly initiates Step 1 of the RFQ workflow by requesting the mandatory Start Date and End Date before proceeding, as required. It does not skip any steps or confirm fields prematurely, and the prompt is clear and aligned with the conversation state and role. No information is forgotten or hallucinated.",PASSED
+STEP1_011,,2,User provides start-end dates,,It should start on 2026-01-10 08:00 and close on 2026-02-10 18:00,"Successfully initialized a new RFQ with the entered start and end dates. The AI suggests that the user may want to provide additional information in the Description, RFQ Title, or Currency fields","Great! Now, please provide the following suggested information to help make your RFQ clearer for suppliers:
+- Title: A clear RFQ name helps you and suppliers quickly understand the purpose of the request and easily identify it in the list of ongoing RFQs.
+- Description: Fill in the Description section with your expectations, formalities, or any other important information your suppliers should be aware of before submitting their offers. A good description increases the number of quotes you will receive.
+- Currency: Currency code (EUR, USD, GBP, JPY, etc.). You can define an anchor currency and select additional currencies to let your suppliers give their quotes using their currencies.
+- Optional advanced settings:
+- Allow product Q&A: If activated, listed suppliers can ask questions per item which you can answer.
+- Notify suppliers of request changes: Suppliers will receive email notifications if item information visible to them changes or new items are added or deleted.
+- Participants confirmation: If activated, suppliers entering the requests will be asked to confirm or decline participation in a request. If declining, suppliers can submit a reason.
+Please provide any of the above information you'd like to include, or let me know if you'd like to skip and proceed with RFQ creation.","FINAL SCORE: 0.89
+========================
+✅ Intent-Based Correctness: 0.70
+   Reason: The response correctly prompts the user for recommended fields such as Title, Description, and Currency, aligning with the expected next steps in the RFQ process. However, it fails to explicitly acknowledge or confirm that the start and end dates have been successfully set, which is a key part of the expected output. The process flow is mostly respected, and no redundant information is requested, but the omission of confirmation for the provided dates prevents full alignment.
+
+✅ Role Adherence: 1.00
+   Reason: The user input is valid and provides start and end dates, which aligns with the RFQ creation process. The output correctly acknowledges the input and prompts the user for the next required information (title, description, currency, etc.), guiding them through the process without skipping steps. There are no critical faults or omissions.
+
+✅ Data Extraction Accuracy: 1.00
+   Reason: The user input contains specific date and time entities for the RFQ start and close, but the actual output provides correct instructions for the RFQ creation process without referencing these entities. According to the evaluation steps, the score should not be decreased in this case, as the output appropriately guides the user on next steps for RFQ creation.
+
+✅ Procedural Compliance: 0.90
+   Reason: The assistant correctly follows the 4-step RFQ workflow: it begins by requesting mandatory Start and End Dates (Step 1), confirms receipt, and then moves to Step 2 by prompting for suggested information, including the mandatory Item Name. However, the assistant does not explicitly request the Item Name in Step 2, which is a required field according to the evaluation steps. The assistant retains context, avoids unnecessary repetition, and guides the user to the next step appropriately. The only issue is the omission of the explicit prompt for the Item Name, preventing a perfect score.",PASSED
+STEP1_011,,3,User provides currencies,,Use USD and GBP currencies,"Currencies updated to USD and GBP for your RFQ.
+
+Would you like to add an RFQ name/title or a description? Let me know if you want to include these details or if you’re ready to move on. ","Both USD and GBP are supported currencies for your RFQ.
+Would you like to provide a title and description for your RFQ? These help suppliers quickly understand the purpose and requirements. You can also let me know if you want to enable any of the optional advanced settings (product Q&A, supplier notifications, or participant confirmation), or you can skip these and proceed.","FINAL SCORE: 0.87
+========================
+✅ Intent-Based Correctness: 0.90
+   Reason: The actual output confirms that both USD and GBP are supported, directly addressing the user's intent to use these currencies, which aligns with the expected output. It also prompts for a title and description, as in the expected output, and offers optional advanced settings, which is a minor addition but not unnecessary or unrelated. The response is clear, relevant, and does not ask for unrelated information, closely matching the evaluation steps.
+
+✅ Role Adherence: 1.00
+   Reason: The Actual Output correctly acknowledges the user's input regarding currencies, which aligns with the Retrieval Context ('User provides currencies') and the RFQ creation process. It then prompts the user for the next required steps (title and description), guiding them through the process in the correct order. There are no faults or omissions in supporting the user's valid input.
+
+✅ Data Extraction Accuracy: 1.00
+   Reason: The input specifies two data entities: USD and GBP currencies. The actual output explicitly references both USD and GBP, confirming their support in the RFQ process. All required entities are mentioned, and the output also provides relevant process instructions. This fully aligns with the evaluation steps.
+
+❌ Procedural Compliance: 0.60
+   Reason: The agent initially follows the RFQ workflow by requesting mandatory fields (start/end date) before proceeding and correctly collects currency, description, and name in subsequent steps. However, after the user provides all required Step 1 and Step 2 information, the agent retroactively flags the start date as being in the past and halts progress, but does not reset or clarify the workflow state, leading to confusion. The agent also requests the RFQ name after already collecting other Step 2 data, indicating partial context retention. The workflow is mostly enforced, but there are issues with step order, context tracking, and explicit guidance to the next step.",PASSED
+STEP1_011,,4,User provides description,,Description: Procurement of office supplies for Q1,"Description added: Procurement of office supplies for Q1.
+
+Would you like to add an RFQ name/title as well, or are you ready to proceed? ",The start date you provided (2026-01-10 08:00) is in the past according to the system. Please provide a future start date and time so we can continue creating your RFQ.,"FINAL SCORE: 0.54
+========================
+❌ Intent-Based Correctness: 0.20
+   Reason: The actual output does not address the user's input or intent, which is to add a description for the RFQ. Instead, it incorrectly references a start date issue that is not present in the input. It fails to confirm the description addition or prompt for the next logical step, missing all required details from the expected output.
+
+❌ Role Adherence: 0.30
+   Reason: The Retrieval Context indicates the user is at the 'provide description' step of RFQ creation, but the Actual Output references a start date, which is not relevant at this stage. The Output does not support or guide the user based on their valid input, failing to adhere to the expected process and the agent's role.
+
+✅ Data Extraction Accuracy: 1.00
+   Reason: The user input is general and does not contain any specific data entities such as dates, currency, or quantities. According to the evaluation steps, when the input is general, the maximum score should be assigned without checking the actual output for data entity references.
+
+✅ Procedural Compliance: 0.70
+   Reason: The agent consistently enforces the RFQ workflow by requesting mandatory information in order (start/end dates, then title/description/currency). The agent correctly identifies missing required fields and does not allow skipping them. However, after the user provides a valid start and end date, the agent requests all suggested (not mandatory) fields at once, rather than guiding step-by-step through each. The agent retains context well until the last turn, where it incorrectly flags the start date as being in the past, despite it being in the future relative to the conversation context. This error disrupts the workflow and indicates a lapse in context retention.",FAILED
+STEP1_011,,5,User provides RFQ name,,"Name ""Marketing services""","Confirm RFQ detail
+
+- Title: Marketing services
+- Description: Procurement of office supplies for Q1
+- Start Date: 2024-12-10 08:00
+- End Date: 2025-01-10 18:00
+- RFQ Type: Indirect Spend
+- Currencies: USD, GBP
+
+Let me know if you want to include these or proceed to the next step. ","Thank you for providing the RFQ name. Please also provide a future start date and time, as the previous date (2026-01-10 08:00) is considered in the past by the system.
+Could you share a new start date and time for your RFQ?","FINAL SCORE: 0.68
+========================
+❌ Intent-Based Correctness: 0.30
+   Reason: The response acknowledges the RFQ name provided and correctly identifies an issue with the start date, prompting the user for a valid future date. However, it does not confirm or summarize the other RFQ details as expected, nor does it offer the user a chance to review or proceed with the next step. The output is narrowly focused on the date issue and misses the broader confirmation and guidance required at this stage.
+
+✅ Role Adherence: 0.80
+   Reason: The user input is valid and aligns with the first step of the RFQ creation process (providing the RFQ name). The output acknowledges the name and prompts for the next required input (start date and time), which is appropriate guidance. However, the output references a previous date (2026-01-10 08:00) that was not present in the current input, which could confuse the user. This minor inconsistency prevents a perfect score.
+
+✅ Data Extraction Accuracy: 1.00
+   Reason: The Input contains only a general data entity (the RFQ name 'Marketing services') without any specific details such as dates, currency, or quantity. According to the evaluation steps, when the Input is general and lacks specific data entities, the maximum score should be assigned regardless of the Actual Output's references. The Actual Output provides correct instructions for the RFQ creation process and does not omit any required data entities.
+
+✅ Procedural Compliance: 0.70
+   Reason: The agent correctly enforces the RFQ workflow by requesting mandatory Start and End Dates in Step 1 before proceeding, and does not allow skipping required steps. After receiving the dates, the agent moves to Step 2, but incorrectly requests only suggested information (Title, Description, Currency, etc.) and does not explicitly request the mandatory Item Name required in Step 2. The agent guides the user to the next step and maintains context, but misses a key mandatory field, partially failing Step 2.",FAILED

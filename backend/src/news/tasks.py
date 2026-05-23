@@ -12,6 +12,8 @@ from src.price.models import Asset
 
 # How many news items to request per ticker per run.
 NEWS_PER_TICKER = 10
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2.0  # seconds, doubles each attempt
 
 
 @celery_app.task(name="src.news.tasks.ingest_assets_news")
@@ -42,9 +44,21 @@ async def _ingest_assets_news():
 
         # 2. Collect raw items from yfinance (includes cross-ticker dedup by URL).
         #    This is blocking I/O (HTTP), so run it in a thread.
-        raw_pairs: list[tuple[str, dict]] = await asyncio.to_thread(
-            get_tickers_news, tickers, NEWS_PER_TICKER
-        )
+        raw_pairs: list[tuple[str, dict]] = []
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                raw_pairs = await asyncio.to_thread(get_tickers_news, tickers, NEWS_PER_TICKER)
+                break
+            except Exception as fetch_err:
+                if attempt == MAX_RETRIES:
+                    logger.error(f"News fetch failed after {MAX_RETRIES} attempts: {fetch_err}")
+                    return
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"News fetch failed (attempt {attempt}/{MAX_RETRIES}): "
+                    f"{fetch_err}. Retrying in {delay:.0f}s…"
+                )
+                await asyncio.sleep(delay)
 
         if not raw_pairs:
             logger.info("No news items returned from yfinance.")

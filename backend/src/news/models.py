@@ -44,7 +44,6 @@ class NewsArticleTicker(Base):
         ForeignKey("news_articles.id", ondelete="CASCADE"), nullable=False
     )
     ticker: Mapped[str] = mapped_column(String(20), nullable=False)
-    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationship
     article: Mapped["NewsArticle"] = relationship(back_populates="tickers")

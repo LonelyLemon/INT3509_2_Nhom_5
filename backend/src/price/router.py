@@ -37,21 +37,35 @@ _HISTORY_TTL: dict[str, int] = {
 }
 _LATEST_TTL = 45  # seconds
 
-# Maps API timeframe strings to PostgreSQL interval expressions used by time_bucket().
-TIMEFRAME_INTERVAL: dict[str, str] = {
-    "5m": "5 minutes",
-    "15m": "15 minutes",
-    "30m": "30 minutes",
-    "1h": "1 hour",
-    "4h": "4 hours",
-    "1d": "1 day",
+# Maps each requested timeframe to (base timeframe stored in DB, aggregation interval).
+# None aggregation interval → query stored data directly (no time_bucket needed).
+# Trusted whitelist — string values are safe to interpolate into SQL INTERVAL literals.
+#
+# Storage layout after backfill:
+#   "1m"  → 7 days   (yfinance hard limit for 1m interval)
+#   "5m"  → 60 days  (fetched natively from yfinance)
+#   "15m" → 60 days  (fetched natively from yfinance)
+#   "30m" → 60 days  (fetched natively from yfinance)
+#   "1h"  → 730 days (fetched natively from yfinance; base for 4h and 1d)
+#
+# 4h and 1d are NOT stored separately — they are derived on-the-fly from
+# the stored 1h series via TimescaleDB time_bucket(), which gives them the
+# same 730-day depth without extra storage overhead.
+_TIMEFRAME_CONFIG: dict[str, tuple[str, str | None]] = {
+    "1m":  ("1m",  None),
+    "5m":  ("5m",  None),
+    "15m": ("15m", None),
+    "30m": ("30m", None),
+    "1h":  ("1h",  None),
+    "4h":  ("1h",  "4 hours"),
+    "1d":  ("1h",  "1 day"),
 }
 
 
 # ── Ticker Management (/price/tickers) ──────────────────────────────────────
 # NOTE: These static-path routes MUST be declared before the dynamic
-# /{ticker} routes so FastAPI does not capture "tickers" or "fetch" as a
-# ticker path parameter.
+# /{ticker} routes so FastAPI does not capture "tickers", "fetch", or
+# "backfill" as ticker path parameters.
 
 
 @price_route.get("/tickers", response_model=list[AssetResponse])
@@ -176,17 +190,16 @@ async def delete_ticker(
     await db.commit()
 
 
-# ── Manual Ingestion Trigger ─────────────────────────────────────────────────
+# ── Manual Ingestion Triggers ────────────────────────────────────────────────
 
 
 @price_route.post("/fetch", status_code=202)
 async def trigger_ingestion(current_user: User = Depends(get_current_user)):
     """
-    Manually trigger a price ingestion run for all active tickers (admin only).
+    Manually trigger a 1m price ingestion run for all active tickers (admin only).
 
     Dispatches the same Celery task used by the 1-minute Beat schedule,
     so data is fetched immediately rather than waiting for the next tick.
-    Useful for testing the ingestion pipeline or refreshing data on demand.
     """
     if current_user.role != "admin":
         raise InsufficientPermissions()
@@ -194,6 +207,27 @@ async def trigger_ingestion(current_user: User = Depends(get_current_user)):
     from src.price.tasks import ingest_1m_price_data  # lazy to avoid circular import
     ingest_1m_price_data.delay()
     return {"message": "Price ingestion task dispatched.", "status": "queued"}
+
+
+@price_route.post("/backfill", status_code=202)
+async def trigger_historical_backfill(
+    ticker: str | None = Query(None, description="Specific ticker to backfill; omit to backfill all active tickers"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Trigger historical price backfill (admin only).
+
+    Downloads daily (max history), hourly (2 years), and 1-minute (7 days)
+    candles from yfinance and upserts them into the database.  Use this once
+    after registering new tickers to populate their full price history.
+    """
+    if current_user.role != "admin":
+        raise InsufficientPermissions()
+
+    from src.price.tasks import ingest_historical_price_data  # lazy import
+    ingest_historical_price_data.delay(ticker)
+    label = ticker.upper() if ticker else "all active tickers"
+    return {"message": f"Historical backfill dispatched for {label}.", "status": "queued"}
 
 
 # ── Price History (/price/{ticker}) ─────────────────────────────────────────
@@ -211,13 +245,14 @@ async def get_price_history(
     """
     Return OHLCV candlestick history for a ticker.
 
-    - `timeframe=1m` queries the stored 1-minute data directly.
-    - All other timeframes are derived on-the-fly via TimescaleDB `time_bucket()`
-      aggregation — no need to ingest multiple timeframes separately.
+    Timeframe routing:
+    - 1m → stored 1-minute data queried directly.
+    - 5m / 15m / 30m → derived on-the-fly by aggregating 1m data with time_bucket().
+    - 1h → stored 1-hour data queried directly (populated by historical backfill).
+    - 4h → derived by aggregating stored 1h data with time_bucket().
+    - 1d → stored daily data queried directly (populated by historical backfill).
 
-    Data is returned in ascending timestamp order (oldest first), ready for
-    chart rendering. Results are cached in Redis with a TTL aligned to the
-    requested timeframe.
+    Results are cached in Redis with a TTL aligned to the requested timeframe.
     """
     if timeframe not in VALID_TIMEFRAMES:
         raise InvalidTimeframe()
@@ -236,10 +271,13 @@ async def get_price_history(
     if not asset:
         raise AssetNotFound()
 
-    if timeframe == "1m":
+    base_tf, agg_interval = _TIMEFRAME_CONFIG[timeframe]
+
+    if agg_interval is None:
+        # Query stored data for this timeframe directly.
         stmt = (
             select(PriceData)
-            .where(PriceData.asset_id == asset.id, PriceData.timeframe == "1m")
+            .where(PriceData.asset_id == asset.id, PriceData.timeframe == base_tf)
         )
         if start:
             stmt = stmt.where(PriceData.timestamp >= start)
@@ -250,27 +288,28 @@ async def get_price_history(
         # Reverse so the chart receives data in ascending order.
         data = [PriceDataResponse.model_validate(r, from_attributes=True) for r in reversed(rows)]
     else:
-        interval = TIMEFRAME_INTERVAL[timeframe]  # trusted whitelist — safe to interpolate
+        # Aggregate base_tf candles into the requested timeframe using TimescaleDB time_bucket().
         sql = text(f"""
             SELECT
-                time_bucket(INTERVAL '{interval}', timestamp) AS timestamp,
-                first(open, timestamp)                        AS open,
-                max(high)                                     AS high,
-                min(low)                                      AS low,
-                last(close, timestamp)                        AS close,
-                sum(volume)                                   AS volume
+                time_bucket(INTERVAL '{agg_interval}', timestamp) AS timestamp,
+                first(open, timestamp)                             AS open,
+                max(high)                                          AS high,
+                min(low)                                           AS low,
+                last(close, timestamp)                             AS close,
+                sum(volume)                                        AS volume
             FROM price_data
             WHERE
-                asset_id    = :asset_id
-                AND timeframe = '1m'
+                asset_id  = :asset_id
+                AND timeframe = :base_tf
                 AND (CAST(:start AS TIMESTAMPTZ) IS NULL OR timestamp >= CAST(:start AS TIMESTAMPTZ))
                 AND (CAST(:end   AS TIMESTAMPTZ) IS NULL OR timestamp <= CAST(:end   AS TIMESTAMPTZ))
-            GROUP BY time_bucket(INTERVAL '{interval}', timestamp)
+            GROUP BY time_bucket(INTERVAL '{agg_interval}', timestamp)
             ORDER BY timestamp DESC
             LIMIT :limit
         """)
         rows = (await db.execute(sql, {
             "asset_id": asset.id,
+            "base_tf": base_tf,
             "start": start,
             "end": end,
             "limit": limit,

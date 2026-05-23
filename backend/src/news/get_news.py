@@ -165,7 +165,7 @@ def parse_yfinance_news_item(
         if symbol and symbol not in seen:
             seen.add(symbol)
             tickers_list.append(
-                NewsArticleTicker(ticker=symbol, relevance_score=None)
+                NewsArticleTicker(ticker=symbol)
             )
 
     sentiment_label, sentiment_score = analyze_sentiment(title, summary or None)

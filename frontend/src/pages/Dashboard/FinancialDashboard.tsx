@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useMarketStore } from '../../store/useMarketStore';
 import { CandlestickChart } from '../../components/Market/CandlestickChart';
 import { WatchlistManager } from '../../components/Portfolio/WatchlistManager';
+import { IndicatorPanel } from '../../components/Market/IndicatorPanel/IndicatorPanel';
 import {
   Search, TrendingUp, TrendingDown,
-  Activity, RefreshCw, ChevronRight, Zap,
+  Activity, RefreshCw, ChevronRight, Zap, BarChart2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -32,11 +33,13 @@ function fmtCompact(n: number | null | undefined): string {
 }
 
 // ── Ticker Card ──────────────────────────────────────────────────────────────
-const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => void }> = ({
+// React.memo prevents re-render when sibling ticker prices update.
+// The selector `state.latestPrices[symbol]` ensures this card only re-renders
+// when its own price changes, not when any other ticker in the map updates.
+const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => void }> = React.memo(({
   symbol, isActive, onClick,
 }) => {
-  const { latestPrices } = useMarketStore();
-  const q = latestPrices[symbol];
+  const q = useMarketStore((state) => state.latestPrices[symbol]);
   const bullish = (q?.change_percentage ?? 0) >= 0;
 
   return (
@@ -69,7 +72,7 @@ const TickerCard: React.FC<{ symbol: string; isActive: boolean; onClick: () => v
       )}
     </button>
   );
-};
+});
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard: React.FC<{ label: string; value: string; sub?: string; positive?: boolean }> = ({
@@ -89,14 +92,20 @@ export const FinancialDashboard: React.FC = () => {
     activeTicker, activeTimeframe,
     candles, candlesLoading, candlesError,
     latestPrices,
+    hasMoreHistory, loadingEarlier,
     fetchTickers, fetchCandles, fetchLatestPrice,
+    loadEarlierCandles,
     setActiveTicker, setActiveTimeframe,
   } = useMarketStore();
+
+  // Actual bar count drawn on the chart (excludes flat yfinance artifacts).
+  const [renderedCandleCount, setRenderedCandleCount] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showIndicators, setShowIndicators] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Initial load
@@ -119,6 +128,16 @@ export const FinancialDashboard: React.FC = () => {
     }, 30_000);
     return () => clearInterval(id);
   }, [tickers, fetchLatestPrice]);
+
+  // Auto-refresh candles every 60s so the chart picks up new 1m bars.
+  // Uses silent mode: existing candles stay visible, no loading spinner.
+  useEffect(() => {
+    if (!activeTicker) return;
+    const id = setInterval(() => {
+      fetchCandles(activeTicker, activeTimeframe, true);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [activeTicker, activeTimeframe, fetchCandles]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +270,20 @@ export const FinancialDashboard: React.FC = () => {
               </div>
 
               <button
+                onClick={() => setShowIndicators(v => !v)}
+                title={showIndicators ? 'Ẩn chỉ báo kỹ thuật' : 'Hiện chỉ báo kỹ thuật'}
+                className={cn(
+                  'p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-medium',
+                  showIndicators
+                    ? 'border-[var(--color-primary)]/50 bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                    : 'border-[var(--border-color)] bg-[var(--card-bg)] opacity-50 hover:opacity-80'
+                )}
+              >
+                <BarChart2 size={14} />
+                <span className="hidden sm:inline">Indicators</span>
+              </button>
+
+              <button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] hover:border-[var(--color-primary)]/50 transition-all cursor-pointer"
@@ -266,7 +299,7 @@ export const FinancialDashboard: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <Activity size={14} className="text-[var(--color-primary)]" />
               <span className="text-sm font-semibold opacity-70">
-                {activeTicker} · {activeTimeframe.toUpperCase()} · {candles.length} candles
+                {activeTicker} · {activeTimeframe.toUpperCase()} · {renderedCandleCount} candles
               </span>
             </div>
 
@@ -294,9 +327,22 @@ export const FinancialDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <CandlestickChart candles={candles} height={420} />
+              <CandlestickChart
+              key={`${activeTicker}-${activeTimeframe}`}
+              candles={candles}
+              height={420}
+              onLoadMore={() => loadEarlierCandles(activeTicker, activeTimeframe)}
+              loadingEarlier={loadingEarlier}
+              hasMoreHistory={hasMoreHistory}
+              onRenderedCount={setRenderedCandleCount}
+            />
             )}
           </div>
+
+          {/* Technical Indicators Panel */}
+          {activeTicker && showIndicators && (
+            <IndicatorPanel ticker={activeTicker} timeframe={activeTimeframe} />
+          )}
 
           {/* Stats row */}
           {activePrice && (

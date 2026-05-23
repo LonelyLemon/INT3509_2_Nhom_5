@@ -19,13 +19,11 @@ class PortfolioUpdate(BaseModel):
 class HoldingCreate(BaseModel):
     asset_id: UUID
     quantity: float = Field(..., gt=0)
-    avg_buy_price: float = Field(..., gt=0)
     notes: str | None = None
 
 
 class HoldingUpdate(BaseModel):
     quantity: float | None = Field(None, gt=0)
-    avg_buy_price: float | None = Field(None, gt=0)
     notes: str | None = None
 
 
@@ -46,16 +44,11 @@ class HoldingResponse(BaseModel):
     id: UUID
     asset: AssetBrief
     quantity: float
-    avg_buy_price: float
     notes: str | None
     created_at: datetime
     updated_at: datetime
-    # P&L — None when no price data available
     current_price: float | None = None
     current_value: float | None = None
-    cost_basis: float
-    pl_amount: float | None = None
-    pl_percentage: float | None = None
     allocation: float | None = None  # filled in after portfolio total is known
 
 
@@ -72,9 +65,6 @@ class PortfolioResponse(BaseModel):
 
 class PortfolioSummary(BaseModel):
     total_value: float
-    total_cost: float
-    total_pl_amount: float
-    total_pl_percentage: float | None
 
 
 class PortfolioDetailResponse(PortfolioResponse):

@@ -40,6 +40,7 @@ help:
 	@echo "    make migrate      Run Alembic migrations inside the api container"
 	@echo "    make migration m=\"msg\"  Create a new Alembic revision (autogenerate)"
 	@echo "    make db-shell     Open psql inside the db container"
+	@echo "    make db-reset     TRUNCATE all tables (keeps schema, no restart needed)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make shell        Open bash shell inside the api container"
@@ -110,6 +111,14 @@ migration:
 .PHONY: db-shell
 db-shell:
 	cd $(BACKEND_DIR) && $(DC_DEV) exec db psql -U marketmind -d marketminddb
+
+.PHONY: db-reset
+db-reset:
+	@echo "WARNING: This will TRUNCATE all tables (data deleted, schema kept)."
+	@read -p "Continue? [y/N] " ans && [ "$$ans" = "y" ]
+	cd $(BACKEND_DIR) && $(DC_DEV) exec db psql -U marketmind -d marketminddb -c \
+		"TRUNCATE TABLE messages, conversations, holdings, portfolios, watchlist_items, price_data, news_article_tickers, news_articles, assets, users RESTART IDENTITY CASCADE;"
+	@echo "  All tables cleared."
 
 # ---------- utilities ----------------------------------------
 .PHONY: shell

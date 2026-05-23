@@ -34,7 +34,6 @@ class Holding(Base):
         ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
     )
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
-    avg_buy_price: Mapped[float] = mapped_column(Float, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     portfolio: Mapped["Portfolio"] = relationship(back_populates="holdings")

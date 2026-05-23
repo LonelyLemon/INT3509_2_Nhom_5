@@ -39,13 +39,21 @@ interface MarketState {
   candles: Candle[];
   candlesLoading: boolean;
   candlesError: string | null;
+  /** False when a previous loadEarlierCandles returned fewer than 200 rows. */
+  hasMoreHistory: boolean;
+  /** True while loadEarlierCandles is in-flight (prevents duplicate fetches). */
+  loadingEarlier: boolean;
 
   fetchTickers: () => Promise<void>;
   fetchLatestPrice: (ticker: string) => Promise<void>;
-  fetchCandles: (ticker: string, timeframe: string) => Promise<void>;
+  fetchCandles: (ticker: string, timeframe: string, silent?: boolean) => Promise<void>;
+  loadEarlierCandles: (ticker: string, timeframe: string) => Promise<void>;
   setActiveTicker: (ticker: string) => void;
   setActiveTimeframe: (tf: string) => void;
 }
+
+// Module-level controller — cancelled whenever a newer fetchCandles call arrives.
+let candlesController: AbortController | null = null;
 
 export const useMarketStore = create<MarketState>((set, get) => ({
   tickers: [],
@@ -56,6 +64,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   candles: [],
   candlesLoading: false,
   candlesError: null,
+  hasMoreHistory: true,
+  loadingEarlier: false,
 
   fetchTickers: async () => {
     set({ tickersLoading: true });
@@ -63,11 +73,9 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       const res = await api.get('/price/tickers', { params: { is_active: true, limit: 50 } });
       const tickers: Ticker[] = res.data;
       set({ tickers, tickersLoading: false });
-      // Set first ticker as active if none selected
       if (!get().activeTicker && tickers.length > 0) {
         set({ activeTicker: tickers[0].ticker });
       }
-      // Fetch latest price for all tickers (up to 10 to avoid overload)
       tickers.slice(0, 10).forEach((t) => get().fetchLatestPrice(t.ticker));
     } catch {
       set({ tickersLoading: false });
@@ -85,21 +93,77 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }
   },
 
-  fetchCandles: async (ticker: string, timeframe: string) => {
+  fetchCandles: async (ticker: string, timeframe: string, silent = false) => {
     if (!ticker) return;
-    set({ candlesLoading: true, candlesError: null });
+
+    // Cancel any in-flight candle request before starting a new one.
+    candlesController?.abort();
+    candlesController = new AbortController();
+    const { signal } = candlesController;
+
+    // Silent mode (background refresh): keep existing candles visible, no spinner.
+    // Reset history flags on non-silent loads (ticker/timeframe change).
+    if (!silent) {
+      set({ candlesLoading: true, candlesError: null, hasMoreHistory: true, loadingEarlier: false });
+    }
+
     try {
       const res = await api.get(`/price/${ticker}`, {
         params: { timeframe, limit: 200 },
+        signal,
       });
       set({ candles: res.data.data ?? [], candlesLoading: false });
     } catch (err: unknown) {
+      // Ignore aborted requests — a newer call is already in flight.
+      if ((err as { name?: string })?.name === 'CanceledError') return;
+
+      // In silent mode keep existing chart intact; only surface errors on explicit loads.
+      if (silent) return;
+
       const status = (err as { response?: { status?: number } })?.response?.status;
       const errorMsg =
         status === 404
           ? `Ticker "${ticker}" is not registered in the database. Ask an admin to add it via POST /price/tickers.`
           : 'Failed to load chart data.';
       set({ candles: [], candlesLoading: false, candlesError: errorMsg });
+    }
+  },
+
+  loadEarlierCandles: async (ticker: string, timeframe: string) => {
+    const { candles, loadingEarlier, hasMoreHistory } = get();
+    if (loadingEarlier || !hasMoreHistory || candles.length === 0) return;
+
+    set({ loadingEarlier: true });
+
+    // Find the oldest candle and fetch candles that end just before it.
+    const earliest = candles.reduce((min, c) =>
+      new Date(c.timestamp) < new Date(min.timestamp) ? c : min
+    );
+    // Subtract 1 ms so the end param doesn't re-fetch the candle we already have.
+    const end = new Date(new Date(earliest.timestamp).getTime() - 1).toISOString();
+
+    try {
+      const res = await api.get(`/price/${ticker}`, {
+        params: { timeframe, limit: 200, end },
+      });
+      const older: Candle[] = res.data.data ?? [];
+
+      if (older.length === 0) {
+        set({ hasMoreHistory: false, loadingEarlier: false });
+        return;
+      }
+
+      // Prepend, deduplicating by timestamp.
+      const existingTimes = new Set(get().candles.map((c) => c.timestamp));
+      const unique = older.filter((c) => !existingTimes.has(c.timestamp));
+
+      set({
+        candles: [...unique, ...get().candles],
+        hasMoreHistory: older.length === 200,
+        loadingEarlier: false,
+      });
+    } catch {
+      set({ loadingEarlier: false });
     }
   },
 
