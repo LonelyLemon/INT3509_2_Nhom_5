@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Plus, TrendingUp, TrendingDown, Trash2, X, Search, RefreshCw, GripVertical,
 } from "lucide-react";
@@ -57,6 +58,7 @@ function SkeletonRow() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const WatchlistManager = () => {
+  const { t } = useTranslation();
   const { tickers, fetchTickers, latestPrices, fetchLatestPrice, setActiveTicker, activeTicker } = useMarketStore();
 
   const [items, setItems] = useState<WatchlistItem[]>([]);
@@ -89,7 +91,7 @@ export const WatchlistManager = () => {
       // Backend price uses 1d data — supplement with latest 1m prices from the price API
       loaded.forEach(item => fetchLatestPrice(item.asset.ticker));
     } catch {
-      setError("Failed to load watchlist.");
+      setError(t("portfolio.watchlist_error_load"));
     } finally {
       setLoading(false);
     }
@@ -181,9 +183,9 @@ export const WatchlistManager = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
         <div>
-          <h2 className="font-semibold text-sm">Watchlist</h2>
+          <h2 className="font-semibold text-sm">{t("portfolio.watchlist_title")}</h2>
           {!loading && (
-            <p className="text-[10px] text-[var(--text-color)]/40">{items.length} asset{items.length !== 1 ? "s" : ""}</p>
+            <p className="text-[10px] text-[var(--text-color)]/40">{items.length} {items.length !== 1 ? t("portfolio.watchlist_assets") : t("portfolio.watchlist_asset")}</p>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -191,7 +193,7 @@ export const WatchlistManager = () => {
             onClick={fetchWatchlist}
             disabled={loading}
             className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/30 transition-colors disabled:opacity-40"
-            title="Refresh"
+            title={t("dashboard.refresh_tooltip")}
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
           </button>
@@ -199,7 +201,7 @@ export const WatchlistManager = () => {
             id="watchlist-add-btn"
             onClick={() => setShowAdd(v => !v)}
             className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-colors"
-            title="Add ticker"
+            title={t("portfolio.watchlist_add_tooltip")}
           >
             <Plus size={14} />
           </button>
@@ -216,7 +218,7 @@ export const WatchlistManager = () => {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search ticker or name…"
+              placeholder={t("portfolio.watchlist_search_placeholder")}
               className="flex-1 text-xs bg-transparent outline-none"
             />
             <button onClick={() => setShowAdd(false)} className="text-[var(--text-color)]/40 hover:text-[var(--text-color)] transition-colors">
@@ -226,7 +228,7 @@ export const WatchlistManager = () => {
           <div className="max-h-44 overflow-y-auto">
             {filteredTickers.length === 0 ? (
               <p className="text-xs text-[var(--text-color)]/40 px-4 py-3">
-                {search ? "No matches found." : "All registered tickers are already in your watchlist."}
+                {search ? t("portfolio.watchlist_no_matches") : t("portfolio.watchlist_all_added")}
               </p>
             ) : (
               filteredTickers.slice(0, 20).map(t => (
@@ -260,18 +262,21 @@ export const WatchlistManager = () => {
         ) : error ? (
           <div className="p-4 text-xs text-rose-400 text-center">
             {error}
-            <button onClick={fetchWatchlist} className="block mx-auto mt-2 text-[var(--color-primary)] hover:underline">Retry</button>
+            <button onClick={fetchWatchlist} className="block mx-auto mt-2 text-[var(--color-primary)] hover:underline">{t("news.retry")}</button>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-            <div className="w-12 h-12 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+          <button
+            onClick={() => setShowAdd(v => !v)}
+            className="flex flex-col items-center justify-center h-full gap-3 text-center px-4 w-full hover:bg-[var(--color-primary)]/5 transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-full bg-[var(--color-primary)]/10 group-hover:bg-[var(--color-primary)]/20 flex items-center justify-center transition-colors">
               <Plus size={22} className="text-[var(--color-primary)]" />
             </div>
             <div>
-              <p className="text-sm font-medium mb-0.5">Your watchlist is empty</p>
-              <p className="text-xs text-[var(--text-color)]/50">Click + to add tickers to watch</p>
+              <p className="text-sm font-medium mb-0.5">{t("portfolio.watchlist_empty")}</p>
+              <p className="text-xs text-[var(--text-color)]/50">{t("portfolio.watchlist_empty_hint")}</p>
             </div>
-          </div>
+          </button>
         ) : (
           <ul className="py-1">
             {items.map((item, idx) => {
@@ -316,7 +321,7 @@ export const WatchlistManager = () => {
                   {/* Drag handle */}
                   <div
                     className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--text-color)]/20 group-hover:text-[var(--text-color)]/40 transition-colors"
-                    title="Drag to reorder"
+                    title={t("portfolio.watchlist_drag_tooltip")}
                   >
                     <GripVertical size={14} />
                   </div>
@@ -346,7 +351,7 @@ export const WatchlistManager = () => {
                     onClick={() => removeItem(item.asset.id)}
                     disabled={deleting === item.asset.id}
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:text-rose-400 disabled:opacity-30 flex-shrink-0"
-                    title="Remove from watchlist"
+                    title={t("portfolio.watchlist_remove_tooltip")}
                   >
                     <Trash2 size={13} />
                   </button>

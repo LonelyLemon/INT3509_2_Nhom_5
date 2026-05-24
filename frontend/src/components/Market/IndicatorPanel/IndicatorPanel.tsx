@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Settings, ChevronDown, ChevronUp, Loader2, RefreshCw } from "lucide-react";
 import { RSIChart } from "./RSIChart";
 import { MACDChart } from "./MACDChart";
 import type { IndicatorData, IndicatorSettings } from "./types";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
+import { useInterpretation } from "../../../hooks/useInterpretation";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -20,6 +22,8 @@ interface Props {
 const MA_COLORS = ["#a78bfa", "#f59e0b", "#34d399", "#f472b6"];
 
 export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
+  const { t } = useTranslation();
+  const interpret = useInterpretation();
   const [data, setData] = useState<IndicatorData | null>(null);
   const [settings, setSettings] = useState<IndicatorSettings | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,7 +45,7 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
       const d: IndicatorData = await res.json();
       setData(d);
     } catch {
-      setError("Không thể tải dữ liệu indicators.");
+      setError(t("indicator.error_load"));
     } finally {
       setLoading(false);
     }
@@ -65,7 +69,7 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-widest opacity-50">
-            Technical Indicators
+            {t("indicator.title")}
           </span>
           {ticker && (
             <span className="text-xs font-bold text-[var(--color-primary)]">{ticker}</span>
@@ -74,21 +78,25 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           <button
             onClick={load}
-            title="Refresh"
+            title={t("indicator.refresh_tooltip")}
             className="p-1 rounded hover:bg-[var(--border-color)]/30 transition-colors"
           >
             <RefreshCw size={12} className={`opacity-50 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={() => setShowSettings(true)}
-            title="Cài đặt"
+            title={t("indicator.settings_tooltip")}
             className="p-1 rounded hover:bg-[var(--border-color)]/30 transition-colors"
           >
             <Settings size={13} className="opacity-50" />
           </button>
-          <div className="opacity-40">
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className="p-1 rounded hover:bg-[var(--border-color)]/30 transition-colors opacity-40"
+            title={collapsed ? "Mở rộng" : "Thu gọn"}
+          >
             {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          </div>
+          </button>
         </div>
       </div>
 
@@ -96,7 +104,7 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
         <div className="p-4">
           {loading && (
             <div className="flex items-center gap-2 text-xs opacity-50 py-2">
-              <Loader2 size={13} className="animate-spin" /> Đang tải…
+              <Loader2 size={13} className="animate-spin" /> {t("indicator.loading")}
             </div>
           )}
           {error && <p className="text-xs text-rose-400 py-2">{error}</p>}
@@ -133,41 +141,69 @@ export const IndicatorPanel = ({ ticker, timeframe = "1d" }: Props) => {
               )}
 
               {activeTab === "MA" && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {data.SMA.length > 0 && (
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wider opacity-50 mb-2">SMA</div>
-                      <div className="flex flex-col gap-1.5">
-                        {data.SMA.map((s, i) => (
-                          <div key={s.period} className="flex items-center justify-between text-xs">
-                            <span style={{ color: MA_COLORS[i % MA_COLORS.length] }} className="font-medium">
-                              SMA {s.period}
-                            </span>
-                            <span className="font-mono">{s.value?.toFixed(4) ?? "—"}</span>
-                            <span className="opacity-60 text-right max-w-[200px] truncate">{s.interpretation}</span>
-                          </div>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider opacity-50">{t("indicator.sma_section")}</div>
+                      <div className="flex flex-col gap-2">
+                        {data.SMA.map((s, i) => {
+                          const isAbove = s.interpretation.includes("above");
+                          return (
+                            <div key={s.period} className="rounded-lg bg-[var(--border-color)]/10 px-3 py-2.5 flex flex-col gap-1">
+                              {/* Top row: label + value + signal */}
+                              <div className="flex items-center justify-between text-xs">
+                                <span style={{ color: MA_COLORS[i % MA_COLORS.length] }} className="font-bold">
+                                  SMA {s.period}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono opacity-70">{s.value?.toFixed(4) ?? "—"}</span>
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isAbove ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
+                                    {isAbove ? t("indicator.ma_signal_bullish") : t("indicator.ma_signal_bearish")}
+                                  </span>
+                                </div>
+                              </div>
+                              {/* Bottom row: interpretation full width */}
+                              <p className="text-[11px] text-[var(--text-color)]/55 leading-relaxed">
+                                {interpret(s.interpretation)}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                   {data.EMA.length > 0 && (
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wider opacity-50 mb-2">EMA</div>
-                      <div className="flex flex-col gap-1.5">
-                        {data.EMA.map((e, i) => (
-                          <div key={e.period} className="flex items-center justify-between text-xs">
-                            <span style={{ color: MA_COLORS[(i + 2) % MA_COLORS.length] }} className="font-medium">
-                              EMA {e.period}
-                            </span>
-                            <span className="font-mono">{e.value?.toFixed(4) ?? "—"}</span>
-                            <span className="opacity-60 text-right max-w-[200px] truncate">{e.interpretation}</span>
-                          </div>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider opacity-50">{t("indicator.ema_section")}</div>
+                      <div className="flex flex-col gap-2">
+                        {data.EMA.map((e, i) => {
+                          const isAbove = e.interpretation.includes("above");
+                          return (
+                            <div key={e.period} className="rounded-lg bg-[var(--border-color)]/10 px-3 py-2.5 flex flex-col gap-1">
+                              {/* Top row: label + value + signal */}
+                              <div className="flex items-center justify-between text-xs">
+                                <span style={{ color: MA_COLORS[(i + 2) % MA_COLORS.length] }} className="font-bold">
+                                  EMA {e.period}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono opacity-70">{e.value?.toFixed(4) ?? "—"}</span>
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isAbove ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
+                                    {isAbove ? t("indicator.ma_signal_bullish") : t("indicator.ma_signal_bearish")}
+                                  </span>
+                                </div>
+                              </div>
+                              {/* Bottom row: interpretation full width */}
+                              <p className="text-[11px] text-[var(--text-color)]/55 leading-relaxed">
+                                {interpret(e.interpretation)}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                   {data.SMA.length === 0 && data.EMA.length === 0 && (
-                    <p className="text-xs opacity-40">Không có dữ liệu MA.</p>
+                    <p className="text-xs opacity-40">{t("indicator.no_ma_data")}</p>
                   )}
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useTranslation } from "react-i18next";
 import { FeedbackBadge } from "./FeedbackBadge";
 import type { Status, ActionResult } from "../types";
 
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function ActionCard({ icon, title, description, status, result, onTrigger, extra }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="glass-card p-6 flex flex-col gap-4">
       <div className="flex items-start gap-4">
@@ -42,7 +44,7 @@ export function ActionCard({ icon, title, description, status, result, onTrigger
           ) : (
             <RefreshCw size={15} />
           )}
-          {status === "loading" ? "Dispatching…" : "Trigger Now"}
+          {status === "loading" ? t("admin.dispatching") : t("admin.trigger_now")}
         </button>
         <FeedbackBadge status={status} result={result} />
       </div>

@@ -1,4 +1,6 @@
 import type { MACDResult } from "./types";
+import { useTranslation } from "react-i18next";
+import { useInterpretation } from "../../../hooks/useInterpretation";
 
 interface Props {
   macd: MACDResult;
@@ -6,38 +8,56 @@ interface Props {
 }
 
 export const MACDChart = ({ macd, params }: Props) => {
+  const { t } = useTranslation();
+  const interpret = useInterpretation();
+
   if (macd.macd_line === null) {
-    return <div className="text-xs text-[var(--text-color)]/40 py-3">{macd.interpretation}</div>;
+    return <div className="text-xs text-[var(--text-color)]/40 py-3">{interpret(macd.interpretation)}</div>;
   }
 
   const histColor = (macd.histogram ?? 0) >= 0 ? "#22c55e" : "#ef4444";
   const barWidth = Math.min(Math.abs((macd.histogram ?? 0) / (Math.abs(macd.macd_line ?? 1) || 1)) * 100, 100);
+  const macdColor = (macd.macd_line ?? 0) >= 0 ? "#22c55e" : "#ef4444";
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-medium">MACD ({params.fast},{params.slow},{params.signal})</span>
+    <div className="flex flex-col gap-3">
+      {/* Header */}
+      <div className="text-xs font-medium opacity-70">
+        MACD ({params.fast}, {params.slow}, {params.signal})
       </div>
+
+      {/* 3-column value grid */}
       <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-[var(--border-color)]/15">
-          <span className="text-[10px] text-[var(--text-color)]/50">MACD Line</span>
-          <span className="font-bold" style={{ color: (macd.macd_line ?? 0) >= 0 ? "#22c55e" : "#ef4444" }}>
+        <div className="flex flex-col items-center gap-1 p-2.5 rounded-lg bg-[var(--border-color)]/15">
+          <span className="text-[10px] text-[var(--text-color)]/50 font-medium uppercase tracking-wide">
+            {t("indicator.macd_line_label")}
+          </span>
+          <span className="font-bold text-sm" style={{ color: macdColor }}>
             {macd.macd_line?.toFixed(4)}
           </span>
         </div>
-        <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-[var(--border-color)]/15">
-          <span className="text-[10px] text-[var(--text-color)]/50">Signal</span>
-          <span className="font-bold text-amber-400">{macd.signal_line?.toFixed(4)}</span>
+        <div className="flex flex-col items-center gap-1 p-2.5 rounded-lg bg-[var(--border-color)]/15">
+          <span className="text-[10px] text-[var(--text-color)]/50 font-medium uppercase tracking-wide">
+            {t("indicator.signal_label")}
+          </span>
+          <span className="font-bold text-sm text-amber-400">
+            {macd.signal_line?.toFixed(4)}
+          </span>
         </div>
-        <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-[var(--border-color)]/15">
-          <span className="text-[10px] text-[var(--text-color)]/50">Histogram</span>
-          <span className="font-bold" style={{ color: histColor }}>{macd.histogram?.toFixed(4)}</span>
+        <div className="flex flex-col items-center gap-1 p-2.5 rounded-lg bg-[var(--border-color)]/15">
+          <span className="text-[10px] text-[var(--text-color)]/50 font-medium uppercase tracking-wide">
+            {t("indicator.histogram_label")}
+          </span>
+          <span className="font-bold text-sm" style={{ color: histColor }}>
+            {macd.histogram?.toFixed(4)}
+          </span>
         </div>
       </div>
-      {/* Histogram bar */}
-      <div className="relative h-2 rounded-full bg-[var(--border-color)]/30 overflow-hidden">
+
+      {/* Histogram divergence bar */}
+      <div className="relative h-2.5 rounded-full bg-[var(--border-color)]/30 overflow-hidden">
         <div
-          className="absolute top-0 h-full rounded-full transition-all"
+          className="absolute top-0 h-full rounded-full transition-all duration-300"
           style={{
             width: `${barWidth}%`,
             left: (macd.histogram ?? 0) >= 0 ? "50%" : `${50 - barWidth}%`,
@@ -46,7 +66,9 @@ export const MACDChart = ({ macd, params }: Props) => {
         />
         <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[var(--border-color)]" />
       </div>
-      <p className="text-[11px] text-[var(--text-color)]/60">{macd.interpretation}</p>
+
+      {/* Interpretation */}
+      <p className="text-[11px] text-[var(--text-color)]/60 leading-relaxed">{interpret(macd.interpretation)}</p>
     </div>
   );
 };

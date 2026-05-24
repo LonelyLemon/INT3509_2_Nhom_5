@@ -80,3 +80,148 @@
     @apply border-[var(--color-primary)] ring-3 ring-[var(--color-primary)]/20;
   }
 }
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── TipTap Rich Text Editor + HtmlRenderer shared styles ───────────────── */
+
+/* Editor canvas */
+.rich-editor-content .ProseMirror {
+  outline: none;
+  min-height: inherit;
+  color: var(--text-color);
+  line-height: 1.7;
+}
+
+/* Placeholder */
+.rich-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-color);
+  opacity: 0.3;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/*
+ * Shared formatting rules — apply to BOTH:
+ *   .rich-editor-content .ProseMirror  (live editor)
+ *   .rich-editor-content               (HtmlRenderer output)
+ */
+.rich-editor-content .ProseMirror,
+.rich-editor-content {
+  line-height: 1.7;
+  color: var(--text-color);
+}
+
+/* Paragraphs */
+.rich-editor-content .ProseMirror p,
+.rich-editor-content p {
+  margin-bottom: 0.6em;
+}
+.rich-editor-content .ProseMirror p:last-child,
+.rich-editor-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.rich-editor-content .ProseMirror h2,
+.rich-editor-content h2 { font-size: 1.2rem; font-weight: 700; margin: 1em 0 0.4em; }
+.rich-editor-content .ProseMirror h3,
+.rich-editor-content h3 { font-size: 1.05rem; font-weight: 600; margin: 0.8em 0 0.3em; }
+
+/* Bold & Italic */
+.rich-editor-content .ProseMirror strong,
+.rich-editor-content strong { font-weight: 700; }
+.rich-editor-content .ProseMirror em,
+.rich-editor-content em { font-style: italic; }
+
+/* Bullet list */
+.rich-editor-content .ProseMirror ul,
+.rich-editor-content ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin-bottom: 0.6em;
+}
+
+/* Ordered list */
+.rich-editor-content .ProseMirror ol,
+.rich-editor-content ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin-bottom: 0.6em;
+}
+
+/* List item */
+.rich-editor-content .ProseMirror li,
+.rich-editor-content li { margin-bottom: 0.2em; }
+
+/* Blockquote */
+.rich-editor-content .ProseMirror blockquote,
+.rich-editor-content blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1em;
+  margin: 0.8em 0;
+  opacity: 0.75;
+  font-style: italic;
+}
+
+/* Inline code */
+.rich-editor-content .ProseMirror code,
+.rich-editor-content code {
+  background: color-mix(in srgb, var(--border-color) 50%, transparent);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: ui-monospace, monospace;
+  color: var(--color-primary);
+}
+
+/* Code block */
+.rich-editor-content .ProseMirror pre,
+.rich-editor-content pre {
+  background: color-mix(in srgb, var(--border-color) 30%, transparent);
+  padding: 0.75em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.rich-editor-content .ProseMirror pre code,
+.rich-editor-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Links */
+.rich-editor-content .ProseMirror a,
+.rich-editor-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  word-break: break-all;
+}
+.rich-editor-content .ProseMirror a:hover,
+.rich-editor-content a:hover { opacity: 0.75; }
+
+/* Horizontal rule */
+.rich-editor-content .ProseMirror hr,
+.rich-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1em 0;
+}
+
+/* Focus ring on the editor wrapper */
+.rich-editor-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
