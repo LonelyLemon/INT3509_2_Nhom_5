@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -21,22 +21,44 @@ async def _resolve_portfolio(
     user_id: uuid.UUID,
     portfolio_name: str | None,
 ) -> Portfolio | None:
-    """Return portfolio by name or the user's default portfolio if name is None."""
+    """Return portfolio by name, or the user's default/first portfolio if name is None.
+
+    When no name is given we prefer the portfolio flagged ``is_default``, but a user
+    may have portfolios without any default flag set (the default flag is only assigned
+    on explicit request). In that case we fall back to the user's oldest portfolio so
+    AI write operations still target a sensible portfolio instead of failing.
+    """
     if portfolio_name:
+        # Case-insensitive name match so "my portfolio" resolves "My Portfolio".
         result = await db.execute(
             select(Portfolio).where(
                 Portfolio.user_id == user_id,
-                Portfolio.name == portfolio_name,
+                func.lower(Portfolio.name) == portfolio_name.strip().lower(),
             )
         )
-    else:
-        result = await db.execute(
+        return result.scalars().first()
+
+    # No name: prefer the default portfolio.
+    default = (
+        await db.execute(
             select(Portfolio).where(
                 Portfolio.user_id == user_id,
                 Portfolio.is_default == True,
             )
         )
-    return result.scalar_one_or_none()
+    ).scalar_one_or_none()
+    if default:
+        return default
+
+    # Fallback: no default flag set anywhere — use the oldest portfolio.
+    return (
+        await db.execute(
+            select(Portfolio)
+            .where(Portfolio.user_id == user_id)
+            .order_by(Portfolio.created_at.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 async def create_portfolio(
@@ -45,8 +67,22 @@ async def create_portfolio(
     name: str,
     description: str | None = None,
 ) -> dict:
-    """Create a new portfolio for the user."""
-    portfolio = Portfolio(user_id=user_id, name=name, description=description)
+    """Create a new portfolio for the user.
+
+    If this is the user's first portfolio, mark it as default so subsequent
+    add/update/remove operations (which target the default portfolio) work.
+    """
+    has_any = (
+        await db.execute(
+            select(func.count()).select_from(Portfolio).where(Portfolio.user_id == user_id)
+        )
+    ).scalar_one()
+    portfolio = Portfolio(
+        user_id=user_id,
+        name=name,
+        description=description,
+        is_default=(has_any == 0),
+    )
     db.add(portfolio)
     try:
         await db.commit()
