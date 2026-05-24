@@ -1,22 +1,24 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { SquarePen, Trash2, Check, X, Search, Bot } from "lucide-react";
 import { AIChatInterface } from "../../components/Chat/AIChatInterface";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const LAST_CONV_KEY = "finai_last_conv_id";
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("access_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function relTime(iso: string): string {
+function relTime(iso: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "vừa xong";
-  if (m < 60) return `${m} phút trước`;
+  if (m < 1) return t("chat.just_now");
+  if (m < 60) return `${m}${t("chat.minutes_ago")}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
-  return new Date(iso).toLocaleDateString("vi-VN");
+  if (h < 24) return `${h}${t("chat.hours_ago")}`;
+  return `${Math.floor(h / 24)}${t("chat.days_ago")}`;
 }
 
 interface ConvSummary {
@@ -38,6 +40,7 @@ interface SidebarProps {
 const ConversationSidebar = ({
   conversations, activeId, onSelect, onNew, onDelete, onRename, loading,
 }: SidebarProps) => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -53,8 +56,8 @@ const ConversationSidebar = ({
   };
 
   const commitRename = (id: string) => {
-    const t = editTitle.trim();
-    if (t) onRename(id, t);
+    const title = editTitle.trim();
+    if (title) onRename(id, title);
     setEditingId(null);
   };
 
@@ -64,11 +67,11 @@ const ConversationSidebar = ({
       <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center gap-2">
         <div className="flex items-center gap-2 flex-1">
           <Bot size={16} className="text-[var(--color-primary)]" />
-          <span className="font-semibold text-sm">FinAI Chat</span>
+          <span className="font-semibold text-sm">{t("ai_chat_page.sidebar_title")}</span>
         </div>
         <button
           onClick={onNew}
-          title="Cuộc hội thoại mới"
+          title={t("ai_chat_page.new_conversation_tooltip")}
           className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors"
         >
           <SquarePen size={14} className="opacity-60" />
@@ -83,7 +86,7 @@ const ConversationSidebar = ({
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm kiếm…"
+            placeholder={t("ai_chat_page.search_placeholder")}
             className="bg-transparent text-xs outline-none flex-1 placeholder:opacity-40"
           />
         </div>
@@ -100,7 +103,7 @@ const ConversationSidebar = ({
         )}
         {!loading && filtered.length === 0 && (
           <div className="px-4 py-8 text-center text-xs text-[var(--text-color)]/40">
-            {conversations.length === 0 ? "Chưa có cuộc hội thoại nào.\nHãy bắt đầu chat!" : "Không tìm thấy kết quả."}
+            {conversations.length === 0 ? t("ai_chat_page.no_conversations") : t("ai_chat_page.no_search_results")}
           </div>
         )}
         <ul className="px-2 space-y-0.5">
@@ -130,7 +133,7 @@ const ConversationSidebar = ({
               ) : (
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-xs font-medium">{conv.title}</p>
-                  <p className="text-[10px] opacity-40">{relTime(conv.updated_at)}</p>
+                  <p className="text-[10px] opacity-40">{relTime(conv.updated_at, t)}</p>
                 </div>
               )}
 
@@ -148,12 +151,12 @@ const ConversationSidebar = ({
                   </>
                 ) : (
                   <>
-                    <button onClick={e => startEdit(conv, e)} className="p-1 rounded hover:text-[var(--color-primary)]" title="Đổi tên">
+                    <button onClick={e => startEdit(conv, e)} className="p-1 rounded hover:text-[var(--color-primary)]" title={t("ai_chat_page.rename_tooltip")}>
                       <SquarePen size={11} />
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); onDelete(conv.id); }}
-                      className="p-1 rounded hover:text-rose-400" title="Xóa"
+                      className="p-1 rounded hover:text-rose-400" title={t("ai_chat_page.delete_tooltip")}
                     >
                       <Trash2 size={11} />
                     </button>
@@ -172,9 +175,18 @@ const ConversationSidebar = ({
 
 export const AIChatPage = () => {
   const [conversations, setConversations] = useState<ConvSummary[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [activeConvId, setActiveConvIdState] = useState<string | null>(
+    () => sessionStorage.getItem(LAST_CONV_KEY) // restore last session
+  );
   const [loading, setLoading] = useState(false);
-  const [chatKey, setChatKey] = useState(0); // force remount AIChatInterface on new chat
+  const [chatKey, setChatKey] = useState(0);
+
+  // Sync activeConvId to sessionStorage on every change
+  const setActiveConvId = (id: string | null) => {
+    setActiveConvIdState(id);
+    if (id) sessionStorage.setItem(LAST_CONV_KEY, id);
+    else sessionStorage.removeItem(LAST_CONV_KEY);
+  };
 
   const loadConversations = useCallback(async () => {
     setLoading(true);

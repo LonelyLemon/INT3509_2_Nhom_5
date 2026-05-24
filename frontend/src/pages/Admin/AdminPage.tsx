@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import {
   RefreshCw, Newspaper, TrendingUp, CheckCircle, XCircle,
@@ -112,6 +113,7 @@ function FeedbackBadge({ status, result }: { status: Status; result: ActionResul
 // ── Add Ticker Form ──────────────────────────────────────────────────────────
 
 function AddTickerForm({ onAdded }: { onAdded: () => void }) {
+  const { t } = useTranslation();
   const [symbol, setSymbol] = useState("");
   const [name, setName] = useState("");
   const [assetType, setAssetType] = useState<string>("STOCK");
@@ -139,7 +141,7 @@ function AddTickerForm({ onAdded }: { onAdded: () => void }) {
       onAdded();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg ?? "Failed to add ticker.");
+      setError(t("admin.failed_add_ticker"));
       setStatus("error");
     }
   };
@@ -147,10 +149,10 @@ function AddTickerForm({ onAdded }: { onAdded: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 items-end">
       <div className="flex flex-col gap-1">
-        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">Symbol *</label>
+        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">{t("admin.symbol_label")}</label>
         <input
           type="text"
-          placeholder="e.g. AAPL"
+          placeholder={t("admin.symbol_placeholder")}
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           required
@@ -158,17 +160,17 @@ function AddTickerForm({ onAdded }: { onAdded: () => void }) {
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">Name</label>
+        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">{t("admin.name_label")}</label>
         <input
           type="text"
-          placeholder="Apple Inc."
+          placeholder={t("admin.name_placeholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-44 px-3 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">Type</label>
+        <label className="text-xs opacity-50 font-medium uppercase tracking-wider">{t("admin.type_label")}</label>
         <div className="relative">
           <select
             value={assetType}
@@ -188,7 +190,7 @@ function AddTickerForm({ onAdded }: { onAdded: () => void }) {
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
       >
         {status === "loading" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-        Add Ticker
+        {t("admin.add_ticker_btn")}
       </button>
       {error && (
         <span className="text-xs text-red-400 flex items-center gap-1">
@@ -210,6 +212,7 @@ function TickerRow({
   onToggle: (t: Ticker) => void;
   onDelete: (t: Ticker) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <tr className="border-b border-[var(--border-color)]/50 hover:bg-[var(--color-primary)]/4 transition-colors">
       <td className="px-4 py-3 font-mono font-bold text-sm text-[var(--color-primary)]">
@@ -230,14 +233,14 @@ function TickerRow({
             ? "bg-emerald-500/15 text-emerald-400"
             : "bg-[var(--border-color)]/40 text-[var(--text-color)] opacity-50"
         )}>
-          {ticker.is_active ? "Active" : "Disabled"}
+          {ticker.is_active ? t("admin.status_active") : t("admin.status_disabled")}
         </span>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => onToggle(ticker)}
-            title={ticker.is_active ? "Disable ingestion" : "Enable ingestion"}
+            title={ticker.is_active ? t("admin.disable_ingestion") : t("admin.enable_ingestion")}
             className={cn(
               "p-1.5 rounded-lg border transition-all cursor-pointer",
               ticker.is_active
@@ -249,7 +252,7 @@ function TickerRow({
           </button>
           <button
             onClick={() => onDelete(ticker)}
-            title="Delete ticker and all price history"
+            title={t("admin.delete_ticker_tooltip")}
             className="p-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
           >
             <Trash2 size={14} />
@@ -263,6 +266,7 @@ function TickerRow({
 // ── Ticker Management Section ────────────────────────────────────────────────
 
 function TickerManagementSection() {
+  const { t } = useTranslation();
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -294,11 +298,11 @@ function TickerManagementSection() {
     const next = !ticker.is_active;
     setConfirm({
       open: true,
-      title: `${next ? "Enable" : "Disable"} ${ticker.ticker}`,
+      title: next ? t("admin.enable_title", { ticker: ticker.ticker }) : t("admin.disable_title", { ticker: ticker.ticker }),
       description: next
-        ? `Resume price ingestion for ${ticker.ticker}. The next Celery Beat cycle will start collecting data again.`
-        : `Pause price ingestion for ${ticker.ticker}. Existing price history is kept. You can re-enable it at any time.`,
-      confirmLabel: next ? "Enable" : "Disable",
+        ? t("admin.enable_desc", { ticker: ticker.ticker })
+        : t("admin.disable_desc", { ticker: ticker.ticker }),
+      confirmLabel: next ? t("admin.enable_ingestion") : t("admin.disable_ingestion"),
       danger: false,
       onConfirm: async () => {
         setConfirm((c) => ({ ...c, open: false }));
@@ -317,9 +321,9 @@ function TickerManagementSection() {
   const handleDelete = (ticker: Ticker) => {
     setConfirm({
       open: true,
-      title: `Delete ${ticker.ticker}?`,
-      description: `This will permanently delete ${ticker.ticker} and ALL of its price history from the database. This action cannot be undone.\n\nIf you only want to stop collecting new data, use the Disable button instead.`,
-      confirmLabel: "Delete permanently",
+      title: t("admin.delete_title", { ticker: ticker.ticker }),
+      description: t("admin.delete_desc", { ticker: ticker.ticker }),
+      confirmLabel: t("admin.delete_permanently"),
       danger: true,
       onConfirm: async () => {
         setConfirm((c) => ({ ...c, open: false }));
@@ -344,12 +348,12 @@ function TickerManagementSection() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
           <span className="text-sm font-semibold">
-            {loading ? "Loading…" : `${tickers.length} tickers registered`}
+            {loading ? t("admin.loading") : t("admin.tickers_registered", { count: tickers.length })}
           </span>
           <button
             onClick={fetchTickers}
             className="p-1.5 rounded-lg border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors cursor-pointer"
-            title="Refresh list"
+            title={t("admin.refresh_list")}
           >
             <RefreshCw size={13} className={cn(loading && "animate-spin")} />
           </button>
@@ -362,14 +366,14 @@ function TickerManagementSection() {
           </div>
         ) : tickers.length === 0 ? (
           <div className="flex items-center justify-center h-32 opacity-40 text-sm">
-            No tickers registered yet.
+            {t("admin.no_tickers")}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-color)]">
-                  {["Symbol", "Name", "Type", "Status", "Actions"].map((h) => (
+                  {[t("admin.symbol_label"), t("admin.name_label"), t("admin.type_label"), t("admin.status_label"), t("admin.actions_label")].map((h) => (
                     <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold opacity-40 uppercase tracking-wider">
                       {h}
                     </th>
@@ -392,7 +396,7 @@ function TickerManagementSection() {
 
         {/* Add form */}
         <div className="px-5 py-4 border-t border-[var(--border-color)] bg-[var(--card-bg)]/30">
-          <p className="text-xs opacity-40 font-semibold uppercase tracking-wider mb-3">Add New Ticker</p>
+          <p className="text-xs opacity-40 font-semibold uppercase tracking-wider mb-3">{t("admin.add_new_ticker")}</p>
           <AddTickerForm onAdded={fetchTickers} />
         </div>
       </div>
@@ -447,7 +451,7 @@ function ActionCard({
           ) : (
             <RefreshCw size={15} />
           )}
-          {status === "loading" ? "Dispatching…" : "Trigger Now"}
+          {status === "loading" ? t("admin.dispatching") : t("admin.trigger_now")}
         </button>
 
         <FeedbackBadge status={status} result={result} />
@@ -475,7 +479,7 @@ function NewsTickerSelect({
           onChange={(e) => onChange(e.target.value)}
           className="appearance-none w-56 px-3 py-2 pr-8 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm font-mono focus:outline-none focus:border-[var(--color-primary)] transition-colors cursor-pointer"
         >
-          <option value="">All active tickers (batch)</option>
+          <option value="">{t("admin.all_tickers_batch")}</option>
           {tickers.filter((t) => t.is_active).map((t) => (
             <option key={t.ticker} value={t.ticker}>
               {t.ticker}{t.name ? ` — ${t.name}` : ""}
@@ -486,7 +490,7 @@ function NewsTickerSelect({
       </div>
       {value && (
         <span className="text-xs opacity-50">
-          Fetches immediately for <span className="font-mono font-bold">{value}</span> (up to 20 articles)
+          {t("admin.fetch_for_ticker", { ticker: value })}
         </span>
       )}
     </div>
@@ -515,6 +519,7 @@ interface AIStats {
 }
 
 function AIStatsSection() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<AIStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -526,7 +531,7 @@ function AIStatsSection() {
       const res = await api.get<AIStats>("/ai/admin/stats");
       setStats(res.data);
     } catch {
-      setError("Failed to load AI stats.");
+      setError(t("admin.failed_ai_stats"));
     } finally {
       setLoading(false);
     }
@@ -534,7 +539,7 @@ function AIStatsSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="flex items-center gap-2 text-sm opacity-50"><Loader2 size={14} className="animate-spin" /> Loading AI stats…</div>;
+  if (loading) return <div className="flex items-center gap-2 text-sm opacity-50"><Loader2 size={14} className="animate-spin" /> {t("admin.loading_ai_stats")}</div>;
   if (error) return <div className="text-sm text-red-400">{error}</div>;
   if (!stats) return null;
 
@@ -543,10 +548,10 @@ function AIStatsSection() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: <MessageSquare size={16} />, label: "Total Conversations", value: stats.total_conversations, color: "text-[var(--color-primary)]" },
-          { icon: <ThumbsUp size={16} />, label: "Likes", value: `${stats.like_count} (${stats.like_rate_pct}%)`, color: "text-emerald-400" },
-          { icon: <ThumbsDown size={16} />, label: "Dislikes", value: `${stats.dislike_count} (${stats.dislike_rate_pct}%)`, color: "text-rose-400" },
-          { icon: <Bot size={16} />, label: "Unrated", value: stats.unrated_count, color: "text-amber-400" },
+          { icon: <MessageSquare size={16} />, label: t("admin.total_conversations"), value: stats.total_conversations, color: "text-[var(--color-primary)]" },
+          { icon: <ThumbsUp size={16} />, label: t("admin.likes"), value: `${stats.like_count} (${stats.like_rate_pct}%)`, color: "text-emerald-400" },
+          { icon: <ThumbsDown size={16} />, label: t("admin.dislikes"), value: `${stats.dislike_count} (${stats.dislike_rate_pct}%)`, color: "text-rose-400" },
+          { icon: <Bot size={16} />, label: t("admin.unrated"), value: stats.unrated_count, color: "text-amber-400" },
         ].map(({ icon, label, value, color }) => (
           <div key={label} className="glass-card p-4 flex flex-col gap-1">
             <div className={cn("flex items-center gap-1.5 text-xs font-medium", color)}>{icon}{label}</div>
@@ -559,16 +564,16 @@ function AIStatsSection() {
       {stats.recent_feedback.length > 0 && (
         <div className="glass-card overflow-hidden">
           <div className="px-4 py-2.5 border-b border-[var(--border-color)] text-xs font-semibold uppercase tracking-wider opacity-50">
-            Recent Feedback
+            {t("admin.recent_feedback")}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-color)] text-xs opacity-50">
-                  <th className="text-left px-4 py-2 font-medium">Conversation</th>
-                  <th className="text-left px-4 py-2 font-medium">Rating</th>
-                  <th className="text-left px-4 py-2 font-medium">Comment</th>
-                  <th className="text-left px-4 py-2 font-medium">Date</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("admin.table_conversation")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("admin.table_rating")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("admin.table_comment")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("admin.table_date")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -577,8 +582,8 @@ function AIStatsSection() {
                     <td className="px-4 py-2.5 max-w-[180px] truncate opacity-80">{item.title}</td>
                     <td className="px-4 py-2.5">
                       {item.rating === "like"
-                        ? <span className="flex items-center gap-1 text-emerald-400"><ThumbsUp size={12} /> Like</span>
-                        : <span className="flex items-center gap-1 text-rose-400"><ThumbsDown size={12} /> Dislike</span>
+                        ? <span className="flex items-center gap-1 text-emerald-400"><ThumbsUp size={12} /> {t("admin.rating_like")}</span>
+                        : <span className="flex items-center gap-1 text-rose-400"><ThumbsDown size={12} /> {t("admin.rating_dislike")}</span>
                       }
                     </td>
                     <td className="px-4 py-2.5 max-w-[220px] truncate opacity-60 text-xs">{item.feedback_text ?? "—"}</td>
@@ -594,7 +599,7 @@ function AIStatsSection() {
       )}
 
       <button onClick={load} className="flex items-center gap-1.5 text-xs opacity-50 hover:opacity-80 transition-opacity self-start">
-        <RefreshCw size={12} /> Refresh
+        <RefreshCw size={12} /> {t("admin.refresh_btn")}
       </button>
     </div>
   );
@@ -603,6 +608,7 @@ function AIStatsSection() {
 // ── Main Admin Page ──────────────────────────────────────────────────────────
 
 export const AdminPage = () => {
+  const { t } = useTranslation();
   const [allTickers, setAllTickers] = useState<Ticker[]>([]);
 
   const [priceStatus, setPriceStatus] = useState<Status>("idle");
@@ -631,7 +637,7 @@ export const AdminPage = () => {
       setPriceStatus("success");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setPriceResult({ message: msg ?? "Failed to dispatch task." });
+      setPriceResult({ message: t("admin.failed_dispatch") });
       setPriceStatus("error");
     }
   };
@@ -645,7 +651,7 @@ export const AdminPage = () => {
       setBackfillStatus("success");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setBackfillResult({ message: msg ?? "Failed to dispatch backfill." });
+      setBackfillResult({ message: msg ?? t("admin.failed_backfill") });
       setBackfillStatus("error");
     }
   };
@@ -660,7 +666,7 @@ export const AdminPage = () => {
       setNewsStatus("success");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setNewsResult({ message: msg ?? "Failed to dispatch task." });
+      setNewsResult({ message: msg ?? t("admin.failed_news") });
       setNewsStatus("error");
     }
   };
@@ -675,25 +681,25 @@ export const AdminPage = () => {
             <ShieldAlert size={22} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
-            <p className="text-sm opacity-50 mt-0.5">Manage tickers and data ingestion pipelines</p>
+            <h1 className="text-2xl font-bold tracking-tight">{t("admin.title")}</h1>
+            <p className="text-sm opacity-50 mt-0.5">{t("admin.subtitle")}</p>
           </div>
         </div>
 
         {/* ── Ticker Management ── */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">Ticker Management</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.ticker_management")}</h2>
           <TickerManagementSection />
         </section>
 
         {/* ── Price Data ── */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">Price Data</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.price_data")}</h2>
 
           <ActionCard
             icon={<TrendingUp size={20} />}
-            title="Trigger Price Ingestion (1m)"
-            description="Dispatches the Celery task that fetches the last 7 days of 1-minute OHLCV data for all active tickers via yfinance. Normally runs automatically every minute."
+            title={t("admin.price_fetch_title")}
+            description={t("admin.price_fetch_desc")}
             status={priceStatus}
             result={priceResult}
             onTrigger={triggerPriceFetch}
@@ -701,8 +707,8 @@ export const AdminPage = () => {
 
           <ActionCard
             icon={<History size={20} />}
-            title="Trigger Historical Backfill"
-            description="Downloads the full price history for all active tickers: daily candles (max available — decades), hourly (2 years), and 1-minute (7 days). Use this once after adding new tickers. Also runs automatically every day at 06:00 HCM."
+            title={t("admin.backfill_title")}
+            description={t("admin.backfill_desc")}
             status={backfillStatus}
             result={backfillResult}
             onTrigger={triggerBackfill}
@@ -711,11 +717,11 @@ export const AdminPage = () => {
 
         {/* ── News Data ── */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">News Data</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.news_data")}</h2>
           <ActionCard
             icon={<Newspaper size={20} />}
-            title="Trigger News Ingestion"
-            description="Fetches and saves news articles. Select a specific ticker to fetch immediately for that symbol only (up to 20 articles). Leave as 'All active tickers' to dispatch the Celery batch task (runs every 3h by schedule)."
+            title={t("admin.news_fetch_title")}
+            description={t("admin.news_fetch_desc")}
             status={newsStatus}
             result={newsResult}
             onTrigger={triggerNewsFetch}
@@ -731,7 +737,7 @@ export const AdminPage = () => {
 
         {/* ── AI Stats ── */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">AI Quality Stats</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.ai_quality")}</h2>
           <AIStatsSection />
         </section>
 

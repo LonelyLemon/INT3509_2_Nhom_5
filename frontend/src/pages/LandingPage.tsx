@@ -7,9 +7,9 @@ export const LandingPage = () => {
   const { t } = useTranslation();
 
   const benefits = [
-    { icon: <TrendingUp className="text-[var(--color-primary)] mb-4" size={32} />, title: "Data-Driven Insights", desc: "Real-time market analytics." },
-    { icon: <Zap className="text-[var(--color-cta)] mb-4" size={32} />, title: "AI Powered", desc: "Instantly analyze complex market trends." },
-    { icon: <Shield className="text-[var(--color-secondary)] mb-4" size={32} />, title: "Secure & Reliable", desc: "Bank-grade infrastructure." }
+    { icon: <TrendingUp className="text-[var(--color-primary)] mb-4" size={32} />, title: t("landing.benefit_data_title"), desc: t("landing.benefit_data_desc") },
+    { icon: <Zap className="text-[var(--color-cta)] mb-4" size={32} />, title: t("landing.benefit_ai_title"), desc: t("landing.benefit_ai_desc") },
+    { icon: <Shield className="text-[var(--color-secondary)] mb-4" size={32} />, title: t("landing.benefit_secure_title"), desc: t("landing.benefit_secure_desc") },
   ];
 
   return (
@@ -18,10 +18,11 @@ export const LandingPage = () => {
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto flex flex-col items-center mt-20">
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-          Intelligence for <br /> <span className="text-[var(--color-primary)]">Modern Finance</span>
+          {t("landing.hero_title").replace(t("landing.hero_title_highlight"), "")}{" "}
+          <br /> <span className="text-[var(--color-primary)]">{t("landing.hero_title_highlight")}</span>
         </h1>
         <p className="text-xl md:text-2xl text-[var(--text-color)]/70 max-w-2xl mb-12">
-          Elevate your portfolio with advanced analytics, real-time news, and actionable AI insights.
+          {t("landing.hero_subtitle")}
         </p>
 
         <div className="flex items-center justify-center gap-4 mb-24">
@@ -54,7 +55,7 @@ export const LandingPage = () => {
 
       {/* Footer */}
       <footer className="mt-auto py-8 text-[var(--text-color)]/50 text-sm">
-        &copy; 2026 MarketMind Platform. All rights reserved.
+        {t("landing.footer_rights")}
       </footer>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { useTimeAgo } from "../../hooks/useTimeAgo";
 import {
   Search, ExternalLink, TrendingUp, TrendingDown, Minus,
   RefreshCw, ChevronLeft, ChevronRight, Newspaper, Tag,
@@ -31,19 +33,7 @@ interface NewsListResponse {
   limit: number;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function SentimentBadge({ label, score }: { label?: string | null; score?: number | null }) {
   if (!label) return null;
@@ -84,6 +74,7 @@ const PAGE_SIZE = 15;
 const SENTIMENT_OPTIONS = ["All", "BULLISH", "BEARISH", "NEUTRAL"] as const;
 
 export const NewsAndCalendar = () => {
+  const { t } = useTranslation();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -131,7 +122,7 @@ export const NewsAndCalendar = () => {
       setArticles(res.data.items);
       setTotal(res.data.total);
     } catch {
-      setError("Failed to load news. Make sure the backend is running.");
+      setError(t("news.error_loading"));
     } finally {
       setLoading(false);
     }
@@ -155,10 +146,10 @@ export const NewsAndCalendar = () => {
         <div className="relative max-w-5xl mx-auto">
           <div className="flex items-center gap-3 mb-1">
             <Newspaper size={22} className="text-[var(--color-primary)]" />
-            <h1 className="text-2xl font-bold tracking-tight">Market News</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("news.title")}</h1>
           </div>
           <p className="text-sm text-[var(--text-color)]/50 mb-5">
-            {total > 0 ? `${total.toLocaleString()} articles in the database` : "Live financial news feed"}
+            {total > 0 ? t("news.article_count", { count: total.toLocaleString() }) : t("news.subtitle")}
           </p>
 
           {/* ── Search + filters ── */}
@@ -169,7 +160,7 @@ export const NewsAndCalendar = () => {
               <input
                 id="news-search"
                 type="text"
-                placeholder="Search headlines…"
+                placeholder={t("news.search_placeholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
@@ -182,7 +173,7 @@ export const NewsAndCalendar = () => {
               <input
                 id="news-ticker-filter"
                 type="text"
-                placeholder="Ticker…"
+                placeholder={t("news.ticker_placeholder")}
                 value={tickerFilter}
                 onChange={(e) => setTickerFilter(e.target.value)}
                 maxLength={10}
@@ -206,7 +197,7 @@ export const NewsAndCalendar = () => {
                       : "hover:bg-white/5",
                   ].join(" ")}
                 >
-                  {s}
+                  {s === "All" ? t("news.sentiment_all") : s}
                 </button>
               ))}
             </div>
@@ -217,7 +208,7 @@ export const NewsAndCalendar = () => {
               onClick={fetchNews}
               disabled={loading}
               className="p-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-[var(--color-primary)] transition-colors disabled:opacity-50"
-              title="Refresh"
+              title={t("dashboard.refresh_tooltip")}
             >
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
@@ -234,7 +225,7 @@ export const NewsAndCalendar = () => {
               onClick={fetchNews}
               className="mt-4 px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:opacity-90 transition-opacity"
             >
-              Retry
+              {t("news.retry")}
             </button>
           </div>
         ) : loading ? (
@@ -244,9 +235,9 @@ export const NewsAndCalendar = () => {
         ) : articles.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <Newspaper size={40} className="mx-auto mb-4 text-[var(--text-color)]/20" />
-            <p className="text-lg font-semibold mb-1">No articles found</p>
+            <p className="text-lg font-semibold mb-1">{t("news.no_articles")}</p>
             <p className="text-sm text-[var(--text-color)]/50">
-              Try adjusting your filters, or trigger ingestion via
+              {t("news.no_articles_hint")}
               <code className="ml-1 px-1.5 py-0.5 rounded bg-white/5 font-mono text-xs">
                 POST /news/fetch
               </code>
@@ -264,7 +255,7 @@ export const NewsAndCalendar = () => {
         {totalPages > 1 && !loading && (
           <div className="flex items-center justify-between mt-8 pt-4 border-t border-[var(--border-color)]">
             <span className="text-sm text-[var(--text-color)]/50">
-              Page {page + 1} of {totalPages} &bull; {total} articles
+              {t("news.pagination", { page: page + 1, total: totalPages, count: total })}
             </span>
             <div className="flex gap-2">
               <button
@@ -273,7 +264,7 @@ export const NewsAndCalendar = () => {
                 disabled={page === 0}
                 className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm disabled:opacity-30 hover:border-[var(--color-primary)] transition-colors"
               >
-                <ChevronLeft size={15} /> Prev
+                <ChevronLeft size={15} /> {t("news.prev_btn")}
               </button>
               <button
                 id="news-next-page"
@@ -281,7 +272,7 @@ export const NewsAndCalendar = () => {
                 disabled={page >= totalPages - 1}
                 className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm disabled:opacity-30 hover:border-[var(--color-primary)] transition-colors"
               >
-                Next <ChevronRight size={15} />
+                {t("news.next_btn")} <ChevronRight size={15} />
               </button>
             </div>
           </div>
@@ -294,6 +285,7 @@ export const NewsAndCalendar = () => {
 // ── Article card ─────────────────────────────────────────────────────────────
 
 function ArticleCard({ article }: { article: NewsArticle }) {
+  const timeAgo = useTimeAgo();
   const hasBullish = article.sentiment_label === "BULLISH";
   const hasBearish = article.sentiment_label === "BEARISH";
 
@@ -329,7 +321,7 @@ function ArticleCard({ article }: { article: NewsArticle }) {
           <span className="text-[var(--text-color)]/20">·</span>
           {/* Time */}
           <span className="text-xs text-[var(--text-color)]/50">
-            {relativeTime(article.published_at)}
+            {timeAgo(article.published_at)}
           </span>
 
           {/* Sentiment badge */}

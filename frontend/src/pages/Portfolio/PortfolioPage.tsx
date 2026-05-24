@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Plus, Trash2, Pencil, Check, X, ChevronRight,
   TrendingUp, TrendingDown, Loader2, Star,
@@ -59,6 +60,7 @@ function SummaryCard({ label, value, sub, positive }: { label: string; value: st
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export const PortfolioPage = () => {
+  const { t } = useTranslation();
   const { tickers, fetchTickers, latestPrices, fetchLatestPrice } = useMarketStore();
 
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -207,8 +209,8 @@ export const PortfolioPage = () => {
       {/* ── Left: portfolio list ─────────────────────────────────────────── */}
       <aside className="w-50 flex-shrink-0 flex flex-col border-r border-[var(--border-color)] bg-[var(--card-bg)]/50">
         <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--border-color)]">
-          <h1 className="font-bold text-base">Portfolios</h1>
-          <button onClick={() => setShowCreate(v => !v)} className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-colors" title="New portfolio">
+          <h1 className="font-bold text-base">{t("portfolio.portfolios_title")}</h1>
+          <button onClick={() => setShowCreate(v => !v)} className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-colors" title={t("portfolio.new_portfolio_tooltip")}>
             <Plus size={14} />
           </button>
         </div>
@@ -216,11 +218,11 @@ export const PortfolioPage = () => {
         {/* Create form */}
         {showCreate && (
           <div className="p-3 border-b border-[var(--border-color)] space-y-2">
-            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Portfolio name" className="input-field w-full text-sm" />
-            <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Description (optional)" className="input-field w-full text-sm" />
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t("portfolio.portfolio_name_placeholder")} className="input-field w-full text-sm" />
+            <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder={t("portfolio.portfolio_desc_placeholder")} className="input-field w-full text-sm" />
             <div className="flex gap-2">
               <button onClick={createPortfolio} disabled={creating || !newName.trim()} className="btn-primary flex-1 text-xs py-1.5 disabled:opacity-50 flex items-center justify-center gap-1">
-                {creating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Create
+                {creating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {t("portfolio.create_btn")}
               </button>
               <button onClick={() => setShowCreate(false)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] hover:bg-[var(--border-color)]/30 transition-colors">
                 <X size={12} />
@@ -236,7 +238,7 @@ export const PortfolioPage = () => {
               {[...Array(3)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-[var(--border-color)]/20 animate-pulse" />)}
             </div>
           ) : portfolios.length === 0 ? (
-            <p className="text-xs text-[var(--text-color)]/40 text-center p-6">No portfolios yet. Create one!</p>
+            <p className="text-xs text-[var(--text-color)]/40 text-center p-6">{t("portfolio.no_portfolios")}</p>
           ) : portfolios.map(p => (
             <div
               key={p.id}
@@ -287,11 +289,21 @@ export const PortfolioPage = () => {
           </div>
         ) : !active ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+            <button
+              onClick={() => setShowCreate(v => !v)}
+              className="w-16 h-16 rounded-full bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20 flex items-center justify-center transition-colors cursor-pointer"
+              title={t("portfolio.create_new_tooltip")}
+            >
               <Plus size={28} className="text-[var(--color-primary)]" />
-            </div>
-            <p className="text-lg font-semibold">Select or create a portfolio</p>
-            <p className="text-sm text-[var(--text-color)]/50">Track your holdings, P&L, and allocation</p>
+            </button>
+            <p className="text-lg font-semibold">{t("portfolio.select_or_create")}</p>
+            <p className="text-sm text-[var(--text-color)]/50">{t("portfolio.select_or_create_hint")}</p>
+            <button
+              onClick={() => setShowCreate(v => !v)}
+              className="btn-primary flex items-center gap-2 text-sm px-5 py-2"
+            >
+              <Plus size={15} /> {t("portfolio.new_portfolio_btn")}
+            </button>
           </div>
         ) : (
           <>
@@ -305,7 +317,7 @@ export const PortfolioPage = () => {
                       value={editDescValue}
                       onChange={e => setEditDescValue(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") saveDescription(); if (e.key === "Escape") setEditingDesc(false); }}
-                      placeholder="Add a description…"
+                      placeholder={t("portfolio.add_description_placeholder")}
                       className="input-field text-sm flex-1"
                       autoFocus
                     />
@@ -315,7 +327,7 @@ export const PortfolioPage = () => {
                 ) : (
                   <div className="flex items-center gap-1.5 group/desc mt-0.5">
                     <p className="text-sm text-[var(--text-color)]/50">
-                      {active.description ?? <span className="italic">No description</span>}
+                      {active.description ?? <span className="italic">{t("portfolio.no_description")}</span>}
                     </p>
                     <button
                       onClick={() => { setEditingDesc(true); setEditDescValue(active.description ?? ""); }}
@@ -330,26 +342,26 @@ export const PortfolioPage = () => {
                 onClick={() => { setShowAddHolding(v => !v); setHoldingSearch(""); setHoldingAssetId(""); }}
                 className="btn-primary flex items-center gap-2 text-sm px-4 py-2 flex-shrink-0"
               >
-                <Plus size={15} /> Add Holding
+                <Plus size={15} /> {t("portfolio.add_holding_btn")}
               </button>
             </div>
 
             {/* Summary cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <SummaryCard label="Total Value" value={`$${fmt(active.summary.total_value)}`} />
+              <SummaryCard label={t("portfolio.total_value")} value={`$${fmt(active.summary.total_value)}`} />
             </div>
 
             {/* Add holding form */}
             {showAddHolding && (
               <div className="glass-card !p-5 space-y-4">
-                <h3 className="font-semibold text-sm">Add Holding</h3>
+                <h3 className="font-semibold text-sm">{t("portfolio.add_holding_title")}</h3>
 
                 {/* Ticker search */}
                 {!holdingAssetId ? (
                   <div>
                     <input
                       value={holdingSearch} onChange={e => setHoldingSearch(e.target.value)}
-                      placeholder="Search ticker or company name…"
+                      placeholder={t("portfolio.search_ticker_placeholder")}
                       className="input-field w-full text-sm"
                       autoFocus
                     />
@@ -376,21 +388,21 @@ export const PortfolioPage = () => {
                 )}
 
                 <div>
-                  <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Quantity</label>
+                  <label className="text-xs text-[var(--text-color)]/50 mb-1 block">{t("portfolio.qty_label")}</label>
                   <input type="number" min="0" value={holdingQty} onChange={e => setHoldingQty(e.target.value)} placeholder="e.g. 100" className="input-field w-full text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-[var(--text-color)]/50 mb-1 block">Notes (optional)</label>
-                  <input value={holdingNotes} onChange={e => setHoldingNotes(e.target.value)} placeholder="Optional note" className="input-field w-full text-sm" />
+                  <label className="text-xs text-[var(--text-color)]/50 mb-1 block">{t("portfolio.notes_label")}</label>
+                  <input value={holdingNotes} onChange={e => setHoldingNotes(e.target.value)} placeholder={t("portfolio.notes_placeholder")} className="input-field w-full text-sm" />
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setShowAddHolding(false)} className="px-4 py-1.5 text-sm rounded-lg border border-[var(--border-color)] hover:bg-[var(--border-color)]/30 transition-colors">Cancel</button>
+                  <button onClick={() => setShowAddHolding(false)} className="px-4 py-1.5 text-sm rounded-lg border border-[var(--border-color)] hover:bg-[var(--border-color)]/30 transition-colors">{t("forum.cancel_btn")}</button>
                   <button
                     onClick={addHolding}
                     disabled={addingHolding || !holdingAssetId || !holdingQty}
                     className="btn-primary px-4 py-1.5 text-sm disabled:opacity-50 flex items-center gap-1"
                   >
-                    {addingHolding ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Add
+                    {addingHolding ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} {t("portfolio.add_btn")}
                   </button>
                 </div>
               </div>
@@ -398,16 +410,25 @@ export const PortfolioPage = () => {
 
             {/* Holdings table */}
             {active.holdings.length === 0 ? (
-              <div className="glass-card !p-10 text-center text-[var(--text-color)]/40 text-sm">
-                No holdings yet. Click "Add Holding" to get started.
-              </div>
+              <button
+                onClick={() => { setShowAddHolding(v => !v); setHoldingSearch(""); setHoldingAssetId(""); }}
+                className="glass-card !p-10 w-full text-center flex flex-col items-center gap-3 hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-full bg-[var(--color-primary)]/10 group-hover:bg-[var(--color-primary)]/20 flex items-center justify-center transition-colors">
+                  <Plus size={22} className="text-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-color)]/70">{t("portfolio.no_holdings")}</p>
+                  <p className="text-xs text-[var(--text-color)]/40 mt-0.5">{t("portfolio.no_holdings_hint")}</p>
+                </div>
+              </button>
             ) : (
               <div className="glass-card !p-0 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b border-[var(--border-color)] text-xs text-[var(--text-color)]/50 uppercase">
                       <tr>
-                        {["Asset", "Qty", "Cur. Price", "Value", "Alloc", ""].map(h => (
+                        {[t("portfolio.table_asset"), t("portfolio.table_qty"), t("portfolio.table_price"), t("portfolio.table_value"), t("portfolio.table_alloc"), ""].map(h => (
                           <th key={h} className="px-3 py-3 text-left font-medium">{h}</th>
                         ))}
                       </tr>
@@ -434,7 +455,7 @@ export const PortfolioPage = () => {
                                     <input
                                       value={editNotes}
                                       onChange={e => setEditNotes(e.target.value)}
-                                      placeholder="Add a note…"
+                                      placeholder={t("portfolio.add_note_placeholder")}
                                       className="input-field w-full text-[10px] py-0.5 mt-0.5"
                                     />
                                   ) : h.notes ? (

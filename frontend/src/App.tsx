@@ -21,9 +21,10 @@ import { AdminData } from "./pages/Admin/AdminData";
 import { AdminAI } from "./pages/Admin/AdminAI";
 import { AdminUsers } from "./pages/Admin/AdminUsers";
 import { AIChatPage } from "./pages/AI/AIChatPage";
+import Forum from "./pages/Community/Forum";
+import PostDetail from "./pages/Community/PostDetail";
 
 // Placeholder pages (not yet implemented)
-const Forum = () => <div className="p-8"><h1 className="text-3xl font-bold">Community Forum</h1></div>;
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -82,6 +83,7 @@ function App() {
           <Route path="/news" element={<NewsAndCalendar />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/community" element={<Forum />} />
+          <Route path="/community/:postId" element={<PostDetail />} />
           <Route path="/ai" element={<AIChatPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={

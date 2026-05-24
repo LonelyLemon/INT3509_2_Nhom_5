@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from src.auth.models import User
 from .models import Post, Comment
 from .schemas import PostCreate, PostOut, CommentCreate, CommentOut
@@ -126,5 +126,11 @@ async def delete_comment(
         raise HTTPException(status_code=404, detail="Comment not found")
     if comment.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
+
+    # Xoá tất cả replies (comment con) trước để tránh FK constraint violation
+    await db.execute(
+        delete(Comment).where(Comment.parent_id == comment_id)
+    )
+
     await db.delete(comment)
     await db.commit()

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp, Newspaper, Bot, Users, ChevronRight, MessageSquare, ThumbsUp, Activity } from "lucide-react";
 import { api } from "../../lib/api";
+import { useTranslation } from "react-i18next";
 import type { AIStats } from "./types";
 
 interface OverviewStats {
@@ -12,6 +13,7 @@ interface OverviewStats {
 }
 
 export function AdminOverview() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<OverviewStats>({
     totalTickers: 0,
     activeTickers: 0,
@@ -42,7 +44,7 @@ export function AdminOverview() {
 
   const summaryCards = [
     {
-      label: "Active Tickers",
+      label: t("admin.overview_active_tickers"),
       value: loading ? "—" : `${stats.activeTickers} / ${stats.totalTickers}`,
       icon: <TrendingUp size={18} />,
       color: "text-[var(--color-primary)]",
@@ -50,7 +52,7 @@ export function AdminOverview() {
       to: "/admin/tickers",
     },
     {
-      label: "Total Users",
+      label: t("admin.overview_total_users"),
       value: loading ? "—" : stats.totalUsers,
       icon: <Users size={18} />,
       color: "text-emerald-400",
@@ -58,7 +60,7 @@ export function AdminOverview() {
       to: "/admin/users",
     },
     {
-      label: "AI Conversations",
+      label: t("admin.overview_ai_convos"),
       value: loading ? "—" : (stats.ai?.total_conversations ?? 0),
       icon: <MessageSquare size={18} />,
       color: "text-violet-400",
@@ -66,7 +68,7 @@ export function AdminOverview() {
       to: "/admin/ai",
     },
     {
-      label: "AI Like Rate",
+      label: t("admin.overview_like_rate"),
       value: loading ? "—" : `${stats.ai?.like_rate_pct ?? 0}%`,
       icon: <ThumbsUp size={18} />,
       color: "text-amber-400",
@@ -76,17 +78,17 @@ export function AdminOverview() {
   ];
 
   const quickLinks = [
-    { to: "/admin/tickers", label: "Manage Tickers", desc: "Add, enable, or remove tickers", icon: <TrendingUp size={16} /> },
-    { to: "/admin/data", label: "Data Ingestion", desc: "Trigger price & news pipelines", icon: <Newspaper size={16} /> },
-    { to: "/admin/ai", label: "AI Quality", desc: "Review conversation feedback", icon: <Bot size={16} /> },
-    { to: "/admin/users", label: "User Management", desc: "Ban, promote or search users", icon: <Users size={16} /> },
+    { to: "/admin/tickers", label: t("admin.quick_tickers"), desc: t("admin.quick_tickers_desc"), icon: <TrendingUp size={16} /> },
+    { to: "/admin/data", label: t("admin.quick_data"), desc: t("admin.quick_data_desc"), icon: <Newspaper size={16} /> },
+    { to: "/admin/ai", label: t("admin.quick_ai"), desc: t("admin.quick_ai_desc"), icon: <Bot size={16} /> },
+    { to: "/admin/users", label: t("admin.quick_users"), desc: t("admin.quick_users_desc"), icon: <Users size={16} /> },
   ];
 
   return (
     <div className="flex flex-col gap-8">
       {/* Summary stats */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">At a Glance</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.overview_glance")}</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {summaryCards.map((card) => (
             <Link
@@ -109,7 +111,7 @@ export function AdminOverview() {
       {/* Quick links */}
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40 flex items-center gap-2">
-          <Activity size={12} /> Quick Access
+          <Activity size={12} /> {t("admin.overview_quick_access")}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {quickLinks.map((link) => (
