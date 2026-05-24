@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { api } from "../../lib/api";
 import { cn } from "../../lib/utils";
+import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import type { AdminUser } from "./types";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -17,13 +18,14 @@ interface UsersResponse {
 }
 
 function RoleBadge({ role }: { role: string }) {
+  const { t } = useTranslation();
   return role === "admin" ? (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-      <ShieldCheck size={11} /> Admin
+      <ShieldCheck size={11} /> {t("admin.users_role_admin")}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--border-color)]/40 text-[var(--text-color)]/60">
-      User
+      {t("admin.users_role_user")}
     </span>
   );
 }
@@ -41,6 +43,7 @@ function VerifiedBadge({ verified }: { verified: boolean }) {
 }
 
 export function AdminUsers() {
+  const { t } = useTranslation();
   const { user: currentUser } = useAuthStore();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -84,11 +87,11 @@ export function AdminUsers() {
     const next = !user.is_banned;
     setConfirm({
       open: true,
-      title: `${next ? "Ban" : "Unban"} ${user.username}?`,
+      title: `${next ? t("admin.users_ban") : t("admin.users_unban")} — ${user.username}?`,
       description: next
-        ? `${user.username} will be prevented from logging in. You can reverse this at any time.`
-        : `${user.username} will be able to log in again.`,
-      confirmLabel: next ? "Ban user" : "Unban user",
+        ? `${user.username} sẽ không thể đăng nhập. Bạn có thể đảo ngược điều này bất kỳ lúc nào.`
+        : `${user.username} sẽ có thể đăng nhập lại.`,
+      confirmLabel: next ? t("admin.users_ban") : t("admin.users_unban"),
       danger: next,
       onConfirm: async () => {
         setConfirm((c) => ({ ...c, open: false }));
@@ -106,12 +109,12 @@ export function AdminUsers() {
     const next = user.role === "admin" ? "user" : "admin";
     setConfirm({
       open: true,
-      title: `${next === "admin" ? "Promote" : "Demote"} ${user.username}?`,
+      title: `${next === "admin" ? t("admin.users_promote") : t("admin.users_demote")} — ${user.username}?`,
       description: next === "admin"
-        ? `${user.username} will gain full admin access to this panel.`
-        : `${user.username} will lose admin privileges and become a regular user.`,
-      confirmLabel: next === "admin" ? "Promote to Admin" : "Demote to User",
-      danger: next === "admin" ? false : true,
+        ? `${user.username} sẽ có quyền truy cập admin đầy đủ.`
+        : `${user.username} sẽ mất quyền admin và trở thành người dùng thường.`,
+      confirmLabel: next === "admin" ? t("admin.users_promote") : t("admin.users_demote"),
+      danger: next !== "admin",
       onConfirm: async () => {
         setConfirm((c) => ({ ...c, open: false }));
         try {
@@ -131,7 +134,7 @@ export function AdminUsers() {
       <ConfirmDialog {...confirm} onCancel={() => setConfirm((c) => ({ ...c, open: false }))} />
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">User Management</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-widest opacity-40">{t("admin.users_title")}</h2>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
@@ -139,7 +142,7 @@ export function AdminUsers() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
             <input
               type="text"
-              placeholder="Search by username or email…"
+              placeholder={t("admin.users_search_placeholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
@@ -150,23 +153,23 @@ export function AdminUsers() {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-3 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] cursor-pointer"
           >
-            <option value="">All roles</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
+            <option value="">{t("admin.users_all_roles")}</option>
+            <option value="admin">{t("admin.users_role_admin")}</option>
+            <option value="user">{t("admin.users_role_user")}</option>
           </select>
           <select
             value={bannedFilter}
             onChange={(e) => setBannedFilter(e.target.value)}
             className="px-3 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] text-sm focus:outline-none focus:border-[var(--color-primary)] cursor-pointer"
           >
-            <option value="">All statuses</option>
-            <option value="false">Active</option>
-            <option value="true">Banned</option>
+            <option value="">{t("admin.users_all_status")}</option>
+            <option value="false">{t("admin.users_active")}</option>
+            <option value="true">{t("admin.users_banned")}</option>
           </select>
           <button
             onClick={() => fetchUsers(page)}
             className="p-2 rounded-lg border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors cursor-pointer"
-            title="Refresh"
+            title={t("admin.refresh_list")}
           >
             <RefreshCw size={14} className={cn(loading && "animate-spin")} />
           </button>
@@ -175,7 +178,7 @@ export function AdminUsers() {
         {/* Table */}
         <div className="glass-card !p-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-[var(--border-color)] text-sm font-semibold">
-            {loading ? "Loading…" : `${total} users found`}
+            {loading ? t("admin.users_loading") : `${total} ${t("admin.users_no_results") === "Không tìm thấy người dùng." ? "người dùng" : "users"}`}
           </div>
 
           {loading ? (
@@ -183,13 +186,13 @@ export function AdminUsers() {
               <Loader2 size={20} className="animate-spin" />
             </div>
           ) : users.length === 0 ? (
-            <div className="flex items-center justify-center h-40 opacity-40 text-sm">No users found.</div>
+            <div className="flex items-center justify-center h-40 opacity-40 text-sm">{t("admin.users_no_results")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-color)]">
-                    {["User", "Role", "Status", "Joined", "Actions"].map((h) => (
+                    {[t("admin.users_col_user"), t("admin.users_col_role"), t("admin.users_col_status"), t("admin.users_col_joined"), t("admin.users_col_actions")].map((h) => (
                       <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold opacity-40 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -232,7 +235,7 @@ export function AdminUsers() {
                           <VerifiedBadge verified={user.is_verified} />
                           {user.is_banned && (
                             <span className="text-xs text-red-400 flex items-center gap-1">
-                              <UserX size={11} /> Banned
+                              <UserX size={11} /> {t("admin.users_banned")}
                             </span>
                           )}
                         </div>
@@ -240,7 +243,7 @@ export function AdminUsers() {
 
                       {/* Joined */}
                       <td className="px-4 py-3 text-xs opacity-50 whitespace-nowrap">
-                        {new Date(user.created_at).toLocaleDateString("vi-VN")}
+                        {new Date(user.created_at).toLocaleDateString()}
                       </td>
 
                       {/* Actions */}
@@ -250,7 +253,7 @@ export function AdminUsers() {
                           <button
                             onClick={() => handleBanToggle(user)}
                             disabled={isSelf(user)}
-                            title={user.is_banned ? "Unban user" : "Ban user"}
+                            title={user.is_banned ? t("admin.users_unban") : t("admin.users_ban")}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed",
                               user.is_banned
@@ -265,7 +268,7 @@ export function AdminUsers() {
                           <button
                             onClick={() => handleRoleToggle(user)}
                             disabled={isSelf(user)}
-                            title={user.role === "admin" ? "Demote to user" : "Promote to admin"}
+                            title={user.role === "admin" ? t("admin.users_demote") : t("admin.users_promote")}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed",
                               user.role === "admin"
@@ -288,7 +291,7 @@ export function AdminUsers() {
           {totalPages > 1 && (
             <div className="px-5 py-3 border-t border-[var(--border-color)] flex items-center justify-between text-sm">
               <span className="text-xs opacity-50">
-                Page {page} of {totalPages}
+                {t("admin.users_page", { page, total: totalPages })}
               </span>
               <div className="flex gap-2">
                 <button

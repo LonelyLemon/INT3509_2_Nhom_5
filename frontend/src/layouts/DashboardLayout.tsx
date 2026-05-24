@@ -136,7 +136,7 @@ export const DashboardLayout = () => {
       </main>
 
       {/* ── Floating AI Chat (available on every page) ── */}
-      <AIChatPopup />
+      {/* <AIChatPopup /> */}
 
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useTimeAgo } from "../../hooks/useTimeAgo";
 import {
   Send, Bot, SquarePen, AlertCircle, Wrench,
   History, Trash2, Check, X, ChevronLeft,
@@ -48,21 +49,8 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
-const WELCOME: Msg = {
-  role: "ai",
-  content: "Hello! I'm **FinAI**, your market analysis assistant. Ask me about stocks, trends, portfolio analysis, or any financial question.",
-  format: "text",
-};
+// WELCOME is now created inside component to use t(), see below
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -78,12 +66,20 @@ export const AIChatInterface = ({
   onConversationCreated,
 }: AIChatInterfaceProps) => {
   const { t } = useTranslation();
+  const timeAgo = useTimeAgo();
+
+  const WELCOME: Msg = {
+    role: "ai",
+    content: t("chat.welcome"),
+    format: "text",
+  };
 
   // Chat state
-  const [messages, setMessages] = useState<Msg[]>([WELCOME]);
+  const [messages, setMessages] = useState<Msg[]>(initialConversationId ? [] : [WELCOME]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+  const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [routingInfo, setRoutingInfo] = useState<RoutingInfo | null>(null);
   const routingInfoRef = useRef<RoutingInfo | null>(null);
@@ -110,6 +106,14 @@ export const AIChatInterface = ({
     if (editingId && editInputRef.current) editInputRef.current.focus();
   }, [editingId]);
 
+  // ── Load initial conversation on mount ────────────────────────────────────
+  useEffect(() => {
+    if (initialConversationId) {
+      loadConversationById(initialConversationId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Conversation list ──────────────────────────────────────────────────────
 
   const loadConversations = useCallback(async () => {
@@ -131,12 +135,13 @@ export const AIChatInterface = ({
 
   // ── Load a conversation ────────────────────────────────────────────────────
 
-  const loadConversation = async (id: string) => {
+  const loadConversationById = async (id: string) => {
+    setLoadingHistory(true);
     try {
       const res = await fetch(`${API_BASE}/ai/conversations/${id}`, {
         headers: authHeaders(),
       });
-      if (!res.ok) return;
+      if (!res.ok) { setMessages([WELCOME]); return; }
       const conv: ConvDetail = await res.json();
       setConversationId(conv.id);
       const msgs: Msg[] = conv.messages.map((m) => ({
@@ -146,8 +151,15 @@ export const AIChatInterface = ({
       }));
       setMessages(msgs.length ? msgs : [WELCOME]);
       setShowHistory(false);
-    } catch { /* ignore */ }
+    } catch {
+      setMessages([WELCOME]);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
+
+  // kept for history panel usage
+  const loadConversation = (id: string) => loadConversationById(id);
 
   // ── Rename ─────────────────────────────────────────────────────────────────
 
@@ -208,7 +220,7 @@ export const AIChatInterface = ({
     lastUserTextRef.current = text;
     const token = getToken();
     if (!token) {
-      setMessages(prev => [...prev, { role: "ai", format: "text", error: true, content: "You must be logged in to use FinAI." }]);
+      setMessages(prev => [...prev, { role: "ai", format: "text", error: true, content: t("chat.error_not_logged_in") }]);
       return;
     }
 
@@ -270,7 +282,7 @@ export const AIChatInterface = ({
                 const isNew = !conversationId;
                 setConversationId(data.conversation_id);
                 if (isNew && onConversationCreated) {
-                  onConversationCreated(data.conversation_id, lastUserTextRef.current.slice(0, 60) || "New conversation");
+                  onConversationCreated(data.conversation_id, lastUserTextRef.current.slice(0, 60) || t("chat.new_conversation_default_title", "New conversation"));
                 }
               }
               const used: string[] = data.tools_used ?? [];
@@ -295,7 +307,7 @@ export const AIChatInterface = ({
               setMessages(prev => {
                 const u = [...prev];
                 const last = u[u.length - 1];
-                if (last?.streaming) u[u.length - 1] = { ...last, streaming: false, error: true, content: data.detail ?? "An error occurred." };
+                if (last?.streaming) u[u.length - 1] = { ...last, streaming: false, error: true, content: data.detail ?? t("chat.error_occurred", "An error occurred.") };
                 return u;
               });
             }
@@ -308,7 +320,7 @@ export const AIChatInterface = ({
       setMessages(prev => {
         const u = [...prev];
         const last = u[u.length - 1];
-        if (last?.streaming) u[u.length - 1] = { ...last, streaming: false, error: true, content: "Failed to reach the AI service." };
+        if (last?.streaming) u[u.length - 1] = { ...last, streaming: false, error: true, content: t("chat.error_failed") };
         return u;
       });
     } finally {
@@ -338,20 +350,32 @@ export const AIChatInterface = ({
             <p className="font-semibold text-sm leading-tight">FinAI Assistant</p>
             {conversationId && (
               <p className="text-xs text-[var(--text-color)]/40 truncate">
-                {conversations.find(c => c.id === conversationId)?.title ?? "Conversation"}
+                {conversations.find(c => c.id === conversationId)?.title ?? t("chat.conversation")}
               </p>
             )}
           </div>
-          <button onClick={openHistory} title="Conversation history" className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors">
+          <button onClick={openHistory} title={t("chat.history_tooltip")} className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors">
             <History size={15} className="text-[var(--text-color)]/50" />
           </button>
-          <button onClick={startNewConversation} title="New conversation" className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors">
+          <button onClick={startNewConversation} title={t("chat.new_conversation_tooltip")} className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/40 transition-colors">
             <SquarePen size={15} className="text-[var(--text-color)]/50" />
           </button>
         </div>
       )}
 
-      {/* ── Message list ── */}
+      {/* ── Loading skeleton while fetching old messages ── */}
+      {loadingHistory ? (
+        <div className="flex-1 flex flex-col gap-3 p-4 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className={`h-10 rounded-xl bg-[var(--border-color)]/20 animate-pulse ${
+                i % 2 === 0 ? "w-3/4" : "w-1/2 self-end"
+              }`}
+            />
+          ))}
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-0.5">
         {messages.map((msg, i) => (
           <div key={i}>
@@ -401,7 +425,7 @@ export const AIChatInterface = ({
         {activeTools.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-[var(--text-color)]/50 italic my-1">
             <Wrench size={11} className="animate-spin text-[var(--color-primary)]" />
-            Using: {activeTools.join(", ")}…
+            {t("chat.using_tools")} {activeTools.join(", ")}…
           </div>
         )}
 
@@ -419,7 +443,8 @@ export const AIChatInterface = ({
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+        </div>
+      )} {/* end loadingHistory else */}
 
       {/* ── Input area ── */}
       <div className="px-3 pt-2 pb-3 bg-[var(--card-bg)] border-t border-[var(--border-color)] flex-shrink-0">
@@ -427,10 +452,10 @@ export const AIChatInterface = ({
         {hideHeader && (
           <div className="flex gap-2 mb-1.5">
             <button onClick={openHistory} className="flex items-center gap-1 text-[11px] text-[var(--text-color)]/40 hover:text-[var(--color-primary)] transition-colors">
-              <History size={11} /> History
+              <History size={11} /> {t("chat.history")}
             </button>
             <button onClick={startNewConversation} className="flex items-center gap-1 text-[11px] text-[var(--text-color)]/40 hover:text-[var(--color-primary)] transition-colors">
-              <SquarePen size={11} /> New chat
+              <SquarePen size={11} /> {t("chat.new_chat")}
             </button>
           </div>
         )}
@@ -470,13 +495,13 @@ export const AIChatInterface = ({
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="font-semibold text-sm flex-1">Conversations</span>
+            <span className="font-semibold text-sm flex-1">{t("chat.conversations_title")}</span>
             <button
               onClick={startNewConversation}
-              title="New conversation"
+              title={t("chat.new_conversation_tooltip")}
               className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:opacity-70 transition-opacity"
             >
-              <SquarePen size={13} /> New
+              <SquarePen size={13} /> {t("chat.new_btn")}
             </button>
           </div>
 
@@ -490,7 +515,7 @@ export const AIChatInterface = ({
               </div>
             ) : conversations.length === 0 ? (
               <div className="p-6 text-center text-sm text-[var(--text-color)]/40">
-                No conversations yet. Start a new chat!
+                {t("chat.no_conversations")}
               </div>
             ) : (
               <ul className="p-2 space-y-1">
@@ -525,7 +550,7 @@ export const AIChatInterface = ({
                     {/* Time */}
                     {editingId !== conv.id && (
                       <span className="text-[10px] text-[var(--text-color)]/40 flex-shrink-0 group-hover:hidden">
-                        {relTime(conv.updated_at)}
+                        {timeAgo(conv.updated_at)}
                       </span>
                     )}
 
@@ -545,10 +570,10 @@ export const AIChatInterface = ({
                         </>
                       ) : (
                         <>
-                          <button onClick={e => startEdit(conv, e)} className="p-1 rounded hover:text-[var(--color-primary)] transition-colors" title="Rename">
+                          <button onClick={e => startEdit(conv, e)} className="p-1 rounded hover:text-[var(--color-primary)] transition-colors" title={t("chat.rename")}>
                             <SquarePen size={12} />
                           </button>
-                          <button onClick={e => deleteConversation(conv.id, e)} className="p-1 rounded hover:text-rose-400 transition-colors" title="Delete">
+                          <button onClick={e => deleteConversation(conv.id, e)} className="p-1 rounded hover:text-rose-400 transition-colors" title={t("chat.delete")}>
                             <Trash2 size={12} />
                           </button>
                         </>

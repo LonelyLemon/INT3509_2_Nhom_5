@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bell, ArrowUpRight, ArrowDownRight, Trash2 } from "lucide-react";
 
 export const AlertInterface = () => {
+  const { t } = useTranslation();
   const [alerts] = useState([
     { id: 1, type: "price", target: "VNM", condition: "above", value: "70,000", active: true },
     { id: 2, type: "price", target: "SSI", condition: "below", value: "30,000", active: true },
@@ -12,7 +14,7 @@ export const AlertInterface = () => {
     <div className="glass-card mb-6">
       <div className="flex items-center gap-2 mb-6">
         <Bell className="text-[var(--color-primary)]" size={20} />
-        <h2 className="text-xl font-bold">Active Alerts</h2>
+        <h2 className="text-xl font-bold">{t("alerts.title")}</h2>
       </div>
 
       <div className="space-y-4">
@@ -31,9 +33,9 @@ export const AlertInterface = () => {
               <div>
                 <div className="font-semibold">{alert.target}</div>
                 <div className="text-sm text-[var(--text-color)]/70 flex items-center gap-1">
-                  Triggers when {alert.type === "price" ? "price goes" : "news mentions"} 
+                  {t("alerts.triggers_when")} {alert.type === "price" ? t("alerts.price_goes") : t("alerts.news_mentions")}{" "}
                   <strong className={alert.condition === "above" ? "text-green-500" : alert.condition === "below" ? "text-red-500" : ""}>
-                    {alert.condition} {alert.value}
+                    {t(`alerts.condition_${alert.condition}`, alert.condition)} {alert.value}
                   </strong>
                 </div>
               </div>
@@ -44,7 +46,7 @@ export const AlertInterface = () => {
                 <input type="checkbox" className="sr-only peer" checked={alert.active} onChange={() => {}} />
                 <div className="w-9 h-5 bg-[var(--border-color)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
               </label>
-              <button className="text-[var(--text-color)]/50 hover:text-red-500 transition-colors p-2 rounded cursor-pointer">
+              <button className="text-[var(--text-color)]/50 hover:text-red-500 transition-colors p-2 rounded cursor-pointer" title={t("common.delete")}>
                 <Trash2 size={16} />
               </button>
             </div>
@@ -54,7 +56,7 @@ export const AlertInterface = () => {
       </div>
 
       <button className="w-full mt-6 py-3 border-2 border-dashed border-[var(--color-primary)]/50 text-[var(--color-primary)] rounded-lg font-semibold hover:bg-[var(--color-primary)]/10 transition-colors">
-        + Create New Alert
+        {t("alerts.create_btn")}
       </button>
 
     </div>

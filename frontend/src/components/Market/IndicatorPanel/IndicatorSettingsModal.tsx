@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { X, RotateCcw } from "lucide-react";
 import type { IndicatorSettings } from "./types";
 
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<IndicatorSettings>(DEFAULTS);
   const [smaInput, setSmaInput] = useState("20,50");
   const [emaInput, setEmaInput] = useState("9,21");
@@ -48,7 +51,7 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
     const smaPeriods = parsePeriods(smaInput);
     const emaPeriods = parsePeriods(emaInput);
     if (!smaPeriods.length || !emaPeriods.length) {
-      setError("Vui lòng nhập ít nhất 1 chu kỳ hợp lệ cho SMA và EMA.");
+      setError(t("indicator.error_periods"));
       return;
     }
     const payload = {
@@ -70,7 +73,7 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
       onSaved(data.settings);
       onClose();
     } catch {
-      setError("Không thể lưu cài đặt. Vui lòng thử lại.");
+      setError(t("indicator.error_save"));
     } finally {
       setSaving(false);
     }
@@ -82,13 +85,13 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
     setEmaInput("9,21");
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="glass-card w-full max-w-md mx-4 p-6 flex flex-col gap-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-base">Cài đặt Indicators</h2>
+          <h2 className="font-semibold text-base">{t("indicator.settings_title")}</h2>
           <div className="flex items-center gap-2">
-            <button onClick={reset} className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/30 transition-colors" title="Reset mặc định">
+            <button onClick={reset} className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/30 transition-colors" title={t("indicator.reset_tooltip")}>
               <RotateCcw size={14} className="opacity-50" />
             </button>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--border-color)]/30 transition-colors">
@@ -101,7 +104,7 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold uppercase tracking-wider opacity-50">RSI</label>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--text-color)]/60 w-16">Chu kỳ</span>
+            <span className="text-sm text-[var(--text-color)]/60 w-16">{t("indicator.period_label")}</span>
             <input
               type="number" min={2} max={100}
               value={settings.RSI.period}
@@ -133,23 +136,23 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
 
         {/* SMA */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wider opacity-50">SMA Periods</label>
+          <label className="text-xs font-semibold uppercase tracking-wider opacity-50">{t("indicator.sma_periods_label")}</label>
           <input
             type="text" value={smaInput}
             onChange={e => setSmaInput(e.target.value)}
-            placeholder="Ví dụ: 20,50,200"
+            placeholder={t("indicator.sma_placeholder")}
             className="input-field text-sm"
           />
-          <p className="text-[11px] text-[var(--text-color)]/40">Nhập các chu kỳ, cách nhau bằng dấu phẩy</p>
+          <p className="text-[11px] text-[var(--text-color)]/40">{t("indicator.periods_hint")}</p>
         </div>
 
         {/* EMA */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wider opacity-50">EMA Periods</label>
+          <label className="text-xs font-semibold uppercase tracking-wider opacity-50">{t("indicator.ema_periods_label")}</label>
           <input
             type="text" value={emaInput}
             onChange={e => setEmaInput(e.target.value)}
-            placeholder="Ví dụ: 9,21,55"
+            placeholder={t("indicator.ema_placeholder")}
             className="input-field text-sm"
           />
         </div>
@@ -157,12 +160,13 @@ export const IndicatorSettingsModal = ({ onClose, onSaved }: Props) => {
         {error && <p className="text-xs text-rose-400">{error}</p>}
 
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn-secondary text-sm px-4 py-2">Hủy</button>
+          <button onClick={onClose} className="btn-secondary text-sm px-4 py-2">{t("indicator.cancel_btn")}</button>
           <button onClick={save} disabled={saving} className="btn-primary text-sm px-4 py-2 disabled:opacity-50">
-            {saving ? "Đang lưu…" : "Lưu cài đặt"}
+            {saving ? t("indicator.saving_btn") : t("indicator.save_btn")}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

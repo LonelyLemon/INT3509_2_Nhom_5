@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMarketStore } from '../../store/useMarketStore';
 import { CandlestickChart } from '../../components/Market/CandlestickChart';
 import { WatchlistManager } from '../../components/Portfolio/WatchlistManager';
@@ -98,6 +99,8 @@ export const FinancialDashboard: React.FC = () => {
     setActiveTicker, setActiveTimeframe,
   } = useMarketStore();
 
+  const { t } = useTranslation();
+
   // Actual bar count drawn on the chart (excludes flat yfinance artifacts).
   const [renderedCandleCount, setRenderedCandleCount] = useState(0);
 
@@ -192,7 +195,7 @@ export const FinancialDashboard: React.FC = () => {
                 />
               ))}
               {!tickers.length && (
-                <p className="text-sm opacity-50 py-4">No active tickers found. Add some from the admin panel.</p>
+                <p className="text-sm opacity-50 py-4">{t("dashboard.no_tickers")}</p>
               )}
             </div>
           )}
@@ -211,7 +214,7 @@ export const FinancialDashboard: React.FC = () => {
                     'text-xs font-semibold px-2 py-0.5 rounded-full',
                     isBull ? 'bg-green-500/15 text-green-500' : 'bg-red-500/15 text-red-500'
                   )}>
-                    {isBull ? '▲' : '▼'} LIVE
+                    {isBull ? '▲' : '▼'} {t("dashboard.live_badge")}
                   </span>
                 )}
               </div>
@@ -243,7 +246,7 @@ export const FinancialDashboard: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-                  placeholder="Symbol…"
+                  placeholder={t("dashboard.search_placeholder")}
                   className={cn(
                     'pl-8 pr-3 py-1.5 text-sm rounded-lg bg-[var(--card-bg)] border border-[var(--border-color)] outline-none font-mono transition-all',
                     searchFocused ? 'w-36 border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20' : 'w-24'
@@ -271,7 +274,7 @@ export const FinancialDashboard: React.FC = () => {
 
               <button
                 onClick={() => setShowIndicators(v => !v)}
-                title={showIndicators ? 'Ẩn chỉ báo kỹ thuật' : 'Hiện chỉ báo kỹ thuật'}
+                title={showIndicators ? t("dashboard.hide_indicators") : t("dashboard.show_indicators")}
                 className={cn(
                   'p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-medium',
                   showIndicators
@@ -280,14 +283,14 @@ export const FinancialDashboard: React.FC = () => {
                 )}
               >
                 <BarChart2 size={14} />
-                <span className="hidden sm:inline">Indicators</span>
+                <span className="hidden sm:inline">{t("dashboard.indicators_btn")}</span>
               </button>
 
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] hover:border-[var(--color-primary)]/50 transition-all cursor-pointer"
-                title="Refresh"
+                title={t("dashboard.refresh_tooltip")}
               >
                 <RefreshCw size={14} className={cn('transition-transform', refreshing && 'animate-spin')} />
               </button>
@@ -307,7 +310,7 @@ export const FinancialDashboard: React.FC = () => {
               <div className="h-[420px] flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3 opacity-50">
                   <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm">Loading chart…</span>
+                  <span className="text-sm">{t("dashboard.loading")}</span>
                 </div>
               </div>
             ) : candlesError ? (
@@ -322,8 +325,8 @@ export const FinancialDashboard: React.FC = () => {
               <div className="h-[420px] flex items-center justify-center">
                 <div className="text-center opacity-50">
                   <div className="text-2xl mb-2">📊</div>
-                  <p className="text-sm font-medium">No chart data available</p>
-                  <p className="text-xs mt-1 opacity-70">Price data hasn't been ingested for {activeTicker} yet.</p>
+                  <p className="text-sm font-medium">{t("dashboard.no_data_title")}</p>
+                  <p className="text-xs mt-1 opacity-70">{t("dashboard.no_data_desc")}</p>
                 </div>
               </div>
             ) : (
@@ -347,10 +350,10 @@ export const FinancialDashboard: React.FC = () => {
           {/* Stats row */}
           {activePrice && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-shrink-0">
-              <StatCard label="Open" value={fmt(activePrice.open)} />
-              <StatCard label="High" value={fmt(activePrice.high)} positive />
-              <StatCard label="Low" value={fmt(activePrice.low)} positive={false} />
-              <StatCard label="Volume" value={fmtCompact(activePrice.volume)} sub="Last 1-min candle" />
+              <StatCard label={t("dashboard.stat_open")} value={fmt(activePrice.open)} />
+              <StatCard label={t("dashboard.stat_high")} value={fmt(activePrice.high)} positive />
+              <StatCard label={t("dashboard.stat_low")} value={fmt(activePrice.low)} positive={false} />
+              <StatCard label={t("dashboard.stat_volume")} value={fmtCompact(activePrice.volume)} sub={t("dashboard.stat_volume_sub")} />
             </div>
           )}
 
@@ -359,13 +362,13 @@ export const FinancialDashboard: React.FC = () => {
             <div className="glass-card !p-0 overflow-hidden flex-shrink-0">
               <div className="px-5 py-3 border-b border-[var(--border-color)] flex items-center gap-2">
                 <TrendingUp size={14} className="text-[var(--color-primary)]" />
-                <h3 className="text-sm font-semibold">Market Overview</h3>
+                <h3 className="text-sm font-semibold">{t("dashboard.market_overview_title")}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border-color)]">
-                      {['Symbol', 'Type', 'Last Price', 'Change', 'Change %', ''].map((h) => (
+                      {[t("dashboard.table_symbol"), t("dashboard.table_type"), t("dashboard.table_last_price"), t("dashboard.table_change"), t("dashboard.table_change_pct"), ''].map((h) => (
                         <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold opacity-50 uppercase tracking-wider">
                           {h}
                         </th>
