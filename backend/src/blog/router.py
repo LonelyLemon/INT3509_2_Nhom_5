@@ -59,7 +59,8 @@ async def delete_post(
     post = await db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.author_id != current_user.id:
+    # Admin có thể xoá mọi bài, user chỉ xoá bài của mình
+    if current_user.role != "admin" and post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
     await db.delete(post)
     await db.commit()
@@ -124,7 +125,8 @@ async def delete_comment(
     comment = await db.get(Comment, comment_id)
     if not comment or comment.post_id != post_id:
         raise HTTPException(status_code=404, detail="Comment not found")
-    if comment.author_id != current_user.id:
+    # Admin có thể xoá mọi comment, user chỉ xoá comment của mình
+    if current_user.role != "admin" and comment.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     # Xoá tất cả replies (comment con) trước để tránh FK constraint violation

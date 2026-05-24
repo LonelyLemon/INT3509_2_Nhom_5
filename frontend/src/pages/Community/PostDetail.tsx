@@ -22,18 +22,21 @@ function CommentItem({
   comment,
   replies,
   currentUserId,
+  isAdmin,
   onDelete,
   onReply,
 }: {
   comment: Comment;
   replies: Comment[];
   currentUserId?: string;
+  isAdmin?: boolean;
   onDelete: (commentId: string) => void;
   onReply: (parentId: string, parentAuthor: string) => void;
 }) {
   const { t } = useTranslation();
   const timeAgo = useTimeAgo();
   const isOwner = currentUserId === comment.author_id;
+  const canDelete = isOwner || isAdmin;
   const authorName = comment.author?.display_name || comment.author?.username || "Unknown";
 
   return (
@@ -63,7 +66,7 @@ function CommentItem({
             >
               <CornerDownRight size={12} /> {t("post_detail.reply_btn")}
             </button>
-            {isOwner && (
+            {canDelete && (
               <button
                 id={`delete-comment-${comment.id}`}
                 onClick={() => onDelete(comment.id)}
@@ -93,7 +96,7 @@ function CommentItem({
                       <HtmlRenderer content={reply.content} className="text-sm" />
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 ml-1">
-                      {currentUserId === reply.author_id && (
+                      {(isAdmin || currentUserId === reply.author_id) && (
                         <button
                           id={`delete-comment-${reply.id}`}
                           onClick={() => onDelete(reply.id)}
@@ -202,6 +205,8 @@ export const PostDetail = () => {
   const getReplies = (parentId: string) => comments.filter((c) => c.parent_id === parentId);
 
   const isPostOwner = user?.id === currentPost?.author_id;
+  const isAdmin = user?.role === "admin";
+  const canDeletePost = isPostOwner || isAdmin;
   const authorName = currentPost?.author?.display_name || currentPost?.author?.username || "Unknown";
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -284,7 +289,7 @@ export const PostDetail = () => {
                 </div>
               </div>
 
-              {isPostOwner && (
+              {canDeletePost && (
                 <button
                   id="delete-post-btn"
                   onClick={handleDeletePost}
@@ -393,6 +398,7 @@ export const PostDetail = () => {
                   comment={comment}
                   replies={getReplies(comment.id)}
                   currentUserId={user?.id}
+                  isAdmin={isAdmin}
                   onDelete={handleDeleteComment}
                   onReply={(id, author) => {
                     setReplyTo({ id, author });

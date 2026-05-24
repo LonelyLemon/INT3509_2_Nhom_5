@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useTimeAgo } from "../../hooks/useTimeAgo";
 import {
   Send, Bot, SquarePen, AlertCircle, Wrench,
-  History, Trash2, Check, X, ChevronLeft,
+  History, Trash2, Check, X, ChevronLeft, Search,
 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { QuickActions } from "./QuickActions";
@@ -49,9 +49,6 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-
-// WELCOME is now created inside component to use t(), see below
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface AIChatInterfaceProps {
@@ -92,6 +89,7 @@ export const AIChatInterface = ({
   const [convLoading, setConvLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -130,6 +128,7 @@ export const AIChatInterface = ({
 
   const openHistory = () => {
     setShowHistory(true);
+    setHistorySearch("");
     loadConversations();
   };
 
@@ -158,7 +157,6 @@ export const AIChatInterface = ({
     }
   };
 
-  // kept for history panel usage
   const loadConversation = (id: string) => loadConversationById(id);
 
   // ── Rename ─────────────────────────────────────────────────────────────────
@@ -335,12 +333,18 @@ export const AIChatInterface = ({
     setInput("");
   };
 
+  // ── Filtered list ─────────────────────────────────────────────────────────
+
+  const filteredConversations = conversations.filter(c =>
+    c.title.toLowerCase().includes(historySearch.toLowerCase())
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-color)] border-r border-[var(--border-color)] relative overflow-hidden">
 
-      {/* ── Static header (standalone mode) ── */}
+      {/* ── Header ── */}
       {!hideHeader && (
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
           <div className="bg-[var(--color-primary)]/10 p-2 rounded-lg">
@@ -363,7 +367,7 @@ export const AIChatInterface = ({
         </div>
       )}
 
-      {/* ── Loading skeleton while fetching old messages ── */}
+      {/* ── Loading skeleton ── */}
       {loadingHistory ? (
         <div className="flex-1 flex flex-col gap-3 p-4 overflow-hidden">
           {[...Array(5)].map((_, i) => (
@@ -376,79 +380,61 @@ export const AIChatInterface = ({
           ))}
         </div>
       ) : (
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-0.5">
-        {messages.map((msg, i) => (
-          <div key={i}>
-            {/* Error messages are shown as a simple red notice */}
-            {msg.error ? (
-              <div className="flex items-start gap-2 text-xs text-rose-400 bg-rose-500/8 rounded-lg px-3 py-2 mb-2">
-                <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
-                {msg.content}
-              </div>
-            ) : (
-              <ChatMessage role={msg.role} content={msg.content} format={msg.format} />
-            )}
-            {/* Streaming cursor */}
-            {msg.streaming && (
-              <span className="inline-block w-1.5 h-4 bg-[var(--color-primary)] rounded-sm animate-pulse ml-1 mb-2" />
-            )}
-            {/* Agent name badge */}
-            {!msg.streaming && msg.role === "ai" && !msg.error && msg.agentName && (
-              <div className="flex items-center gap-1 ml-1 mb-1">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]/70 font-medium">
-                  {msg.agentName}
-                </span>
-              </div>
-            )}
-            {/* Tools used badges */}
-            {/* {!msg.streaming && msg.toolsUsed && msg.toolsUsed.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1 ml-1">
-                {msg.toolsUsed.map(tool => (
-                  <span key={tool} className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                    <Wrench size={9} /> {tool}
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-0.5">
+          {messages.map((msg, i) => (
+            <div key={i}>
+              {msg.error ? (
+                <div className="flex items-start gap-2 text-xs text-rose-400 bg-rose-500/8 rounded-lg px-3 py-2 mb-2">
+                  <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+                  {msg.content}
+                </div>
+              ) : (
+                <ChatMessage role={msg.role} content={msg.content} format={msg.format} />
+              )}
+              {msg.streaming && (
+                <span className="inline-block w-1.5 h-4 bg-[var(--color-primary)] rounded-sm animate-pulse ml-1 mb-2" />
+              )}
+              {!msg.streaming && msg.role === "ai" && !msg.error && msg.agentName && (
+                <div className="flex items-center gap-1 ml-1 mb-1">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]/70 font-medium">
+                    {msg.agentName}
                   </span>
-                ))}
-              </div>
-            )} */}
-          </div>
-        ))}
+                </div>
+              )}
+            </div>
+          ))}
 
-        {/* Routing indicator — shown while intent is being classified */}
-        {isStreaming && routingInfo && messages[messages.length - 1]?.content === "" && (
-          <div className="flex items-center gap-1.5 text-xs text-[var(--color-primary)]/70 italic my-1">
-            <Bot size={11} className="animate-pulse" />
-            {routingInfo.agentName}…
-          </div>
-        )}
+          {isStreaming && routingInfo && messages[messages.length - 1]?.content === "" && (
+            <div className="flex items-center gap-1.5 text-xs text-[var(--color-primary)]/70 italic my-1">
+              <Bot size={11} className="animate-pulse" />
+              {routingInfo.agentName}…
+            </div>
+          )}
 
-        {/* Active tool indicator */}
-        {activeTools.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-[var(--text-color)]/50 italic my-1">
-            <Wrench size={11} className="animate-spin text-[var(--color-primary)]" />
-            {t("chat.using_tools")} {activeTools.join(", ")}…
-          </div>
-        )}
+          {activeTools.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-color)]/50 italic my-1">
+              <Wrench size={11} className="animate-spin text-[var(--color-primary)]" />
+              {t("chat.using_tools")} {activeTools.join(", ")}…
+            </div>
+          )}
 
-        {/* Thinking indicator — before routing info arrives */}
-        {isStreaming && !routingInfo && messages[messages.length - 1]?.content === "" && (
-          <div className="flex items-center gap-2 text-xs text-[var(--text-color)]/50 italic">
-            <Bot size={13} className="animate-pulse text-[var(--color-primary)]" />
-            {t("chat.thinking", "FinAI is analyzing…")}
-          </div>
-        )}
+          {isStreaming && !routingInfo && messages[messages.length - 1]?.content === "" && (
+            <div className="flex items-center gap-2 text-xs text-[var(--text-color)]/50 italic">
+              <Bot size={13} className="animate-pulse text-[var(--color-primary)]" />
+              {t("chat.thinking", "FinAI is analyzing…")}
+            </div>
+          )}
 
-        {/* Feedback widget — shown after stream completes */}
-        {showFeedback && conversationId && !isStreaming && (
-          <ConversationFeedback conversationId={conversationId} />
-        )}
+          {showFeedback && conversationId && !isStreaming && (
+            <ConversationFeedback conversationId={conversationId} />
+          )}
 
-        <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
         </div>
-      )} {/* end loadingHistory else */}
+      )}
 
       {/* ── Input area ── */}
       <div className="px-3 pt-2 pb-3 bg-[var(--card-bg)] border-t border-[var(--border-color)] flex-shrink-0">
-        {/* Popup-mode controls */}
         {hideHeader && (
           <div className="flex gap-2 mb-1.5">
             <button onClick={openHistory} className="flex items-center gap-1 text-[11px] text-[var(--text-color)]/40 hover:text-[var(--color-primary)] transition-colors">
@@ -505,6 +491,29 @@ export const AIChatInterface = ({
             </button>
           </div>
 
+          {/* Search bar */}
+          <div className="px-3 py-2 border-b border-[var(--border-color)]/50 flex-shrink-0">
+            <div className="flex items-center gap-2 bg-[var(--border-color)]/20 rounded-lg px-3 py-1.5">
+              <Search size={13} className="opacity-40 flex-shrink-0" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={e => setHistorySearch(e.target.value)}
+                placeholder={t("ai_chat_page.search_placeholder")}
+                className="bg-transparent text-xs outline-none flex-1 placeholder:opacity-40"
+                autoFocus
+              />
+              {historySearch && (
+                <button
+                  onClick={() => setHistorySearch("")}
+                  className="text-[var(--text-color)]/30 hover:text-[var(--text-color)]/60 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {convLoading ? (
@@ -513,13 +522,15 @@ export const AIChatInterface = ({
                   <div key={i} className="h-10 rounded-lg bg-[var(--border-color)]/20 animate-pulse" />
                 ))}
               </div>
-            ) : conversations.length === 0 ? (
+            ) : filteredConversations.length === 0 ? (
               <div className="p-6 text-center text-sm text-[var(--text-color)]/40">
-                {t("chat.no_conversations")}
+                {conversations.length === 0
+                  ? t("chat.no_conversations")
+                  : t("ai_chat_page.no_search_results")}
               </div>
             ) : (
               <ul className="p-2 space-y-1">
-                {conversations.map(conv => (
+                {filteredConversations.map(conv => (
                   <li
                     key={conv.id}
                     onClick={() => editingId !== conv.id && loadConversation(conv.id)}
@@ -530,7 +541,6 @@ export const AIChatInterface = ({
                         : "hover:bg-[var(--border-color)]/30",
                     ].join(" ")}
                   >
-                    {/* Title or edit input */}
                     {editingId === conv.id ? (
                       <input
                         ref={editInputRef}
@@ -544,17 +554,12 @@ export const AIChatInterface = ({
                         className="flex-1 text-sm bg-transparent border-b border-[var(--color-primary)] outline-none"
                       />
                     ) : (
-                      <span className="flex-1 text-sm truncate">{conv.title}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate font-medium">{conv.title}</p>
+                        <p className="text-[10px] text-[var(--text-color)]/40">{timeAgo(conv.updated_at)}</p>
+                      </div>
                     )}
 
-                    {/* Time */}
-                    {editingId !== conv.id && (
-                      <span className="text-[10px] text-[var(--text-color)]/40 flex-shrink-0 group-hover:hidden">
-                        {timeAgo(conv.updated_at)}
-                      </span>
-                    )}
-
-                    {/* Actions */}
                     <div className={[
                       "flex-shrink-0 flex items-center gap-1",
                       editingId === conv.id ? "flex" : "hidden group-hover:flex",

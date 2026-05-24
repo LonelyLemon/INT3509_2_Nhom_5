@@ -28,11 +28,13 @@ function stripHtml(html: string) {
 function PostCard({
   post,
   currentUserId,
+  isAdmin,
   onDelete,
   onClick,
 }: {
   post: Post;
   currentUserId?: string;
+  isAdmin?: boolean;
   onDelete: (id: string) => void;
   onClick: (id: string) => void;
 }) {
@@ -49,6 +51,7 @@ function PostCard({
   }
 
   const isOwner = currentUserId === post.author_id;
+  const canDelete = isOwner || isAdmin;
 
   return (
     <>
@@ -84,7 +87,7 @@ function PostCard({
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {isOwner && (
+            {canDelete && (
               <button
                 id={`delete-post-${post.id}`}
                 onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
@@ -348,6 +351,7 @@ export const Forum = () => {
                 key={post.id}
                 post={post}
                 currentUserId={user?.id}
+                isAdmin={user?.role === "admin"}
                 onDelete={deletePost}
                 onClick={(id) => navigate(`/community/${id}`)}
               />
